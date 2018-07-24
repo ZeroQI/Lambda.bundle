@@ -151,9 +151,9 @@ def Search(results, media, lang, manual, agent_type):
         if dir not in dirs:  dirs.append(dir)
       
       #Season poster
-      Log.Info(metadata.attrs.keys())
-      for i in inspect.getmembers(metadata):  # Ignores anything starting with underscore (that is, private and protected attributes)
-        Log.Info(i)
+      #Log.Info(metadata.seasons[season].attrs.keys())
+      #for i in inspect.getmembers(metadata.seasons[season]):  # Ignores anything starting with underscore (that is, private and protected attributes)
+      #  Log.Info(i)
       for url in metadata.seasons[season].posters.keys():
         filename = 'season-specials-poster' if season=='0' else 'Season{:02}'.format(int(season))
         if len(metadata.seasons[season].posters.keys()) > 1:  filename += chr(ord('a')+metadata.seasons[season].posters.keys().index(url))
