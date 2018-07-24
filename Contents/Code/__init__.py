@@ -10,7 +10,6 @@ import urllib2     # Request
 import time        # sleep
 import hashlib
 from   io          import open  #
-from   lxml        import etree      # fromstring
 
 ###
 def natural_sort_key(s):
@@ -78,10 +77,9 @@ def Search(results, media, lang, manual, agent_type):
   metadata = media.primary_metadata
   
   ### Plex Library XML ###
-  PLEX_LIBRARY, PLEX_LIBRARY_URL = {}, "http://127.0.0.1:32400/library/sections/"    # Allow to get the library name to get a log per library https://support.plex.tv/hc/en-us/articles/204059436-Finding-your-account-token-X-Plex-Token
-  if Prefs['token']:  PLEX_LIBRARY_URL += "?X-Plex-Token=" + Prefs['token']  #Log.Info("Prefs['token']: {}".format(Prefs['token']))
+  PLEX_LIBRARY, PLEX_LIBRARY_URL = {}, "http://127.0.0.1:32400/library/sections"    # Allow to get the library name to get a log per library https://support.plex.tv/hc/en-us/articles/204059436-Finding-your-account-token-X-Plex-Token
   try:
-    library_xml = etree.fromstring(urllib2.urlopen(PLEX_LIBRARY_URL).read())
+    library_xml = XML.ElementFromURL(PLEX_LIBRARY_URL)
     for library in library_xml.iterchildren('Directory'):
       for path in library.iterchildren('Location'):
         PLEX_LIBRARY[path.get("path")] = library.get("key")
@@ -89,6 +87,21 @@ def Search(results, media, lang, manual, agent_type):
   except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info('PLEX_LIBRARY: {}'.format(PLEX_LIBRARY))
   
+  ###Series loop for posters, art, themes
+  #http://127.0.0.1:32400/library/sections/X/all?type=2
+  #posterUrl = ''.join((misc.GetLoopBack(), '/photo/:/transcode?width=', str(Prefs['Poster_Width']), '&height=', str(Prefs['Poster_Hight']),'&minSize=1&url=', String.Quote(rowentry['Poster url'])))
+  #try:
+  #  with io.open(os.path.join(posterDir, rowentry['Media ID'] + '.jpg'), 'wb') as handler:
+  #    handler.write(HTTP.Request(posterUrl).content)
+  #except Exception, e:  Log.Exception('Exception was %s' % str(e))
+     
+
+  ### Season loop for season posters
+  #http://127.0.0.1:32400/library/sections/X/all?type=3
+  
+  ### Collection loop for collection poster, summary
+  #http://127.0.0.1:32400/library/sections/X/all?type=18
+    
   #--------------------------------------------------------------------------------------------------------------------------------------------------
   if agent_type in ('Movies', 'TV_Shows'):
   
@@ -113,19 +126,6 @@ def Search(results, media, lang, manual, agent_type):
         Log.Info('key: {}, root: {}'.format(key, root))
         break
     else:  key='';  Log.Info('[!] Library access denied')  #401 no right to list libraries (windows)
-    
-    '''
-    #library items    http://127.0.0.1:32400/library/sections?X-Plex-Token=
-    Collection list  http://127.0.0.1:32400/library/sections/X/all?type=18&X-Plex-Token=
-    Series list      http://127.0.0.1:32400/library/sections/X/all?type=2&X-Plex-Token=
-    Season           http://127.0.0.1:32400/library/sections/X/all?type=3&X-Plex-Token=
-    posterUrl = ''.join((misc.GetLoopBack(), '/photo/:/transcode?width=', str(Prefs['Poster_Width']), '&height=', str(Prefs['Poster_Hight']),'&minSize=1&url=', String.Quote(rowentry['Poster url'])))
-    try:
-      with io.open(os.path.join(posterDir, rowentry['Media ID'] + '.jpg'), 'wb') as handler:
-        handler.write(HTTP.Request(posterUrl).content)
-    except Exception, e:  Log.Exception('Exception was %s' % str(e))
-    '''   
-    
     
     ###Theme song "theme.mp3”
     for url in metadata.themes.keys():  SaveFile(os.path.join(dir, 'themes.mp3'), metadata.themes[url], 'themes');  break
