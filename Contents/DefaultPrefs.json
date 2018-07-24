@@ -1,0 +1,5 @@
+[
+  { "id": "token",                      "label": "X-Plex-Token",                    "type": "text",  "default": "None"                  },
+  { "id": "thumbs",                     "label": "Download episode thumbs",         "type": "bool",  "default": "false"                                                          },
+  { "id": "themes",                     "label": "Download Series Theme songs",     "type": "bool",  "default": "false"                                                          }
+]
