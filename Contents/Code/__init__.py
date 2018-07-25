@@ -47,8 +47,8 @@ def GetLibraryRootPath(dir):
   return library, root, path
 
 def GetMediaDir (media, agent_type):
-  if agent_type=='Movies':  return os.path.split(os.path.splitext(media.items[0].parts[0].file)[0])
-  if agent_type=='TV_Shows':
+  if agent_type=='movie':  return os.path.dirname(media.items[0].parts[0].file)
+  if agent_type=='show':
     dirs=[]
     for s in media.seasons if media else []: # TV_Show:
       for e in media.seasons[s].episodes:
@@ -57,8 +57,8 @@ def GetMediaDir (media, agent_type):
     for dir in dirs:
       if dir.startswith('Season'): return os.path.dirname(dir), ''
     else:
-      if len(dirs)==1:  return dir, ''
-      else:             return os.path.dirname(dir), ''
+      if len(dirs)==1:  return dir
+      else:             return os.path.dirname(dir)
 
 def SaveFile(filename, content, field=''):
   if os.path.exists(filename) and os.path.getsize(filename)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(filename)))
@@ -96,33 +96,57 @@ def Search(results, media, lang, manual, agent_type):
   </MediaContainer>
   '''
   PLEX_LIBRARY = {}
+  dir          = GetMediaDir(media, agent_type)
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_LIBRARY_URL, timeout=float(TIMEOUT))
-    for library in PLEX_LIBRARY_XML.iterchildren('Directory'):
-      for  path in library.iterchildren('Location'):
-        PLEX_LIBRARY[path.get("path")] = library.get("key")
-        #<MediaContainer   
-        #Directory         art="/:/resources/movie-fanart.jpg" thumb="/:/resources/artist.png" key="31" type="artist" title="Music" language="en" agent="com.plexapp.agents.lastfm" scanner="Plex Music Scanner" 
-        #Location:         id="7" path="/Users/plexuser/Movies/Media/Music"/
+    for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
+      Log.Info('Library: [{:>2}] [{:<6}] {}'.format(directory.get('key'), directory.get('type'), directory.get('title')))
+      if agent_type==directory.get('type'):
+        for location in directory:
+          if dir and location.get("path") in dir:
+            Log.Info('[=] id: {:>2}, path: {}'.format(location.get("id"), location.get("path")))
+            PLEX_LIBRARY[location.get("path")] = directory.get("key")
+            key = directory.get("key")
+          else:                                    Log.Info('[ ] id: {:>2}, path: {}'.format(location.get("id"), location.get("path")))
+          
   except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info('PLEX_LIBRARY: {}'.format(PLEX_LIBRARY))
   
   ### PLEX_TVSHOWS_URL - TV Shows###
-  count = 0
-  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) != 0:
+  '''
+  <Directory ratingKey="2064" key="/library/metadata/2064/children" studio="Sunrise" type="show" title="Cowboy Bebop" contentRating="TV-MA" summary="The year is 2071 AD. With the systematic collapse of the old nation-states, a mixed jumble of races and peoples were driven out of their terrestrial Eden and spread to the stars, taking with them the now confused concepts of justice, freedom, violence, and love. New rules were established, and a new generation of bounty hunters came into being. People referred to these bounty hunters as &quot;cowboys&quot;.&#10;Meet Spike Spiegel and Jet Black, a drifter and a retired cyborg cop who have started a bounty hunting partnership. In the converted ship The Bebop, Spike and Jet search the galaxy for criminals with bounties on their heads. They meet a lot of interesting characters, including the unusually intelligent dog Ein, the bizarre hacker child prodigy Ed, and the voluptuous and vexing femme fatale, Faye Valentine.&#10;Source: AnimeNfo&#10;Note: Originally aired on TV Tokyo, but after 12 episodes the show was cancelled due to the violence portrayed in the Cowboy Bebop world and violence in Japanese schools. The final and also the 13th episode on TV Tokyo was a compilation episode where the characters provide a philosophical commentary and end with the words: &quot;[i]This Is Not The End. You Will See The Real &quot;Cowboy Bebop&quot; Someday!&quot; Four months later, WOWOW started to broadcast all 26 episodes of Cowboy Bebop. The ordering was different with completely new episodes mixed in between episodes previously broadcast on TV Tokyo, including a new episode 1.[/i]" index="1" rating="8.6" year="1998" thumb="/library/metadata/2064/thumb/1527940525" art="/library/metadata/2064/art/1527940525" banner="/library/metadata/2064/banner/1527940525" theme="/library/metadata/2064/theme/1527940525" duration="1500000" originallyAvailableAt="1998-04-03" leafCount="1" viewedLeafCount="0" childCount="1" addedAt="1523205540" updatedAt="1527940525">
+  '''
+  count, found = 0, False
+  parentRatingKey=""
+  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type]:
     try:
-      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-      count += 1
-      total  = PLEX_TVSHOWS_XML.get('totalSize')
-      Log.Debug("PLEX_TVSHOWS_URL size: {} [{} of {}]".format(PLEX_TVSHOWS_XML.get('size'), count, total))
-      for media in PLEX_TVSHOWS_XML.xpath('.//Video'):
-        Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
-        #"thumb=" 
-        #banner
-        #themes
-        
+      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      total = PLEX_TVSHOWS_XML.get('totalSize')
+      Log.Debug("PLEX_TVSHOWS_URL [{}-{} of {}]".format(count+1, count+int(PLEX_TVSHOWS_XML.get('size')) ,total))
+      for show in PLEX_TVSHOWS_XML.iterchildren('Directory'):
+        if media.title==show.get('title'):
+          Log.Info('title:                 {}'.format(show.get('title')))
+          #Log.Info('summary:               {}'.format(show.get('summary')))
+          #Log.Info('contentRating:         {}'.format(show.get('contentRating')))
+          #Log.Info('studio:                {}'.format(show.get('studio')))
+          #Log.Info('rating:                {}'.format(show.get('rating')))
+          #Log.Info('year:                  {}'.format(show.get('year')))
+          #Log.Info('duration:              {}'.format(show.get('duration')))
+          #Log.Info('originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
+          
+          if show.get('thumb'    ):  Log.Info('[ ] thumb:                 {}'.format(PLEX_SERVER_NAME+show.get('thumb'    )))
+          if show.get('art'      ):  Log.Info('[ ] art:                   {}'.format(PLEX_SERVER_NAME+show.get('art'      )))
+          if show.get('banner'   ):  Log.Info('[ ] banner:                {}'.format(PLEX_SERVER_NAME+show.get('banner'   )))
+          if show.get('themes'   ):  Log.Info('[ ] themes:                {}'.format(PLEX_SERVER_NAME+show.get('themes'   )))
+          if show.get('ratingKey'):  Log.Info('[ ] ratingKey:             {}'.format(show.get('ratingKey'))); parentRatingKey = show.get('ratingKey')
+          if show.get('key'      ):  Log.Info('[ ] key:                   {}'.format(show.get('key'      ))); 
+          #Log.Info(XML.StringFromElement(show))
+          found = True
+          break
+      else:  count += WINDOW_SIZE[agent_type];  continue
+      break      
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-
+  Log.Info('found: {}'.format(found))
   ###Series loop for posters, art, themes
   #XML: thumb="/library/metadata/25199/thumb/1398798243"
   #http://127.0.0.1:32400/library/metadata/25199/thumb/1398798243
@@ -139,17 +163,17 @@ def Search(results, media, lang, manual, agent_type):
     </Directory>
     </MediaContainer>
   '''
-  count = 0
-  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) != 0:
+  count, found = 0, False
+  while count==0 or int(PLEX_SEASONS_XML.get('size')) == WINDOW_SIZE[agent_type]:
     try:
-      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-      count += 1
-      total  = PLEX_TVSHOWS_XML.get('totalSize')
-      Log.Debug("PLEX_TVSHOWS_URL size: {} [{} of {}]".format(PLEX_TVSHOWS_XML.get('size'), count, total))
-      for media in PLEX_TVSHOWS_XML.xpath('.//Video'):
-        Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
-        #librarySectionID="2" librarySectionTitle="Old TV Shows" 
-        #MediaContainer>Directory type="season" title="Season 1" thumb="/library/metadata/5687/thumb/1532246173" art="/library/metadata/5638/art/1532247429" parentThumb="/library/metadata/5638/thumb/1532247429"
+      PLEX_SEASONS_XML = XML.ElementFromURL(PLEX_SEASONS_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      total  = PLEX_SEASONS_XML.get('totalSize')
+      Log.Debug("PLEX_SEASONS_URL [{}-{} of {}]".format(count+1, count+int(PLEX_SEASONS_XML.get('size')) ,total))
+      for show in PLEX_SEASONS_XML.iterchildren('Directory'):
+        #Log.Info(XML.StringFromElement(show))
+        if parentRatingKey == show.get('parentRatingKey'):
+          Log.Debug("title: '{}'".format(show.get('title'))) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+      else:  count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
 
   
@@ -157,14 +181,14 @@ def Search(results, media, lang, manual, agent_type):
   # "http://IPOfPMS:32400/library/sections/X/all?collection=15213" <Collection id="15213" filter="collection=15213" tag="28 Days/Weeks Later"/>
   #  xxx.get('Collection')
   count = 0
-  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) != 0:
+  while count==0 or int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]:
     try:
-      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_COLLECT_XML.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-      count += 1
-      total  = PLEX_TVSHOWS_XML.get('totalSize')
-      Log.Debug("PLEX_TVSHOWS_URL size: {} [{} of {}]".format(PLEX_TVSHOWS_XML.get('size'), count, total))
-      for media in PLEX_TVSHOWS_XML.xpath('.//Video'):
+      PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_COLLECT_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      total  = PLEX_COLLECT_XML.get('totalSize')
+      Log.Debug("PLEX_TVSHOWS_URL size: [{}-{} of {}]".format(count+1, count+int(PLEX_COLLECT_XML.get('size')), total))
+      for media in PLEX_COLLECT_XML.xpath('.//Video'):
         Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+      count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
   
   #--------------------------------------------------------------------------------------------------------------------------------------------------
@@ -278,14 +302,14 @@ def Update(metadata, media, lang, force, agent_type):
 class LMETVAgent(Agent.TV_Shows):  # 'com.plexapp.agents.none', 'com.plexapp.agents.opensubtitles'
   name, primary_provider, fallback_agent, contributes_to, accepts_from = 'LME', False, False, ['com.plexapp.agents.localmedia', 'com.plexapp.agents.hama'], ['com.plexapp.agents.localmedia', 'com.plexapp.agents.hama']
   languages = [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
-  def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'TV_Shows')
-  def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'TV_Shows')
+  def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'show')
+  def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'show')
 
 class LMEMovieAgent(Agent.Movies):
   name, primary_provider, fallback_agent, contributes_to, accepts_from = 'LME', False, False, ['com.plexapp.agents.localmedia', 'com.plexapp.agents.hama'], ['com.plexapp.agents.localmedia', 'com.plexapp.agents.hama']
   languages = [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
-  def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'Movies')
-  def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'Movies')
+  def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'movie')
+  def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'movie')
 
 class LMEArtistAgent(Agent.Artist):
   contributes_to       = ['com.plexapp.agents.discogs', 'com.plexapp.agents.lastfm', 'com.plexapp.agents.plexmusic', 'com.plexapp.agents.none']
@@ -293,8 +317,8 @@ class LMEArtistAgent(Agent.Artist):
   name                 = 'LME'
   primary_provider     = False
   persist_stored_files = False
-  def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'Artist')
-  def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'Artist')
+  def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'artist')
+  def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'artist')
     
 class LMEAlbumAgent(Agent.Album):
   contributes_to       = ['com.plexapp.agents.discogs', 'com.plexapp.agents.lastfm', 'com.plexapp.agents.plexmusic', 'com.plexapp.agents.none']
@@ -312,5 +336,6 @@ PLEX_LIBRARY_URL = 'http://127.0.0.1:32400/library/sections'
 PLEX_TVSHOWS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=2&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_SEASONS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=3&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_COLLECT_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_SERVER_NAME = 'http://127.0.0.1:32400'
 TIMEOUT          = 30
-WINDOW_SIZE      = {'Movies': 30, 'TV_Shows': 20, 'Artist': 10, 'Album': 10, 'Photo': 20}
+WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'Album': 10}
