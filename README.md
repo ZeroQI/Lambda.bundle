@@ -1,4 +1,4 @@
-###Local Media Export Plex Agent
+## Local Media Export Plex Agent
 
 This is in development, not yet working but soon will be...
 
@@ -8,14 +8,13 @@ Allow to save locally (estimated for now):
 - Music: Artists (poster), Albums (Cover)
 - Collections (Poster, summary)
 
-Settings 
---------
+### Settings 
+
 - Single posters for poster and season poster (on by default)
 - create episode thumbs (off by default)
 - create TV Shows theme songs (off by default)
 
-Installation
-============
+### Installation
 
 No need for Plex token!
 
@@ -41,20 +40,20 @@ Plex main folder location:
 Get the latest source zip in github release for hama https://github.com/ZeroQI/MLE.bundle > "Clone or download > Download Zip
 Folders Youtube-Agent.bundle-master.zip and copy inside folder Youtube-Agent.bundle-master in plug-ins folders but rename to "Youtube-Agent.bundle" (remove -master) :
 
-Troubleshooting:
-================
+### Troubleshooting:
+
 If you ask for something already answered in the readme, or post scanner issues on the agent page or vice-versa, please donate (will be refered to as the RTFM tax)
 
-Possible improvement
-====================
+### Possible improvement
+
 [ ] XBMC compatible nfo export
 [ ] Import into plex exported Collection and meta if not present (through HTTP post, makes it a double agent)
 
-History
-=======
+### History
+
 Commissionned by rbeatse
  on the forum post: https://forums.plex.tv/t/looking-for-a-developer-to-make-an-app/274692
  
-Donation link:
-==============
+### Donation link:
+
 [PayPal.Me/ZeroQI](https://PayPal.Me/ZeroQI) or better [Donation link](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S8CUKCX4CWBBG&lc=IE&item_name=ZeroQI&item_number=Local%20Media%20Agent&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
