@@ -8,11 +8,20 @@ Allow to save locally (estimated for now):
 - Music: Artists (poster), Albums (Cover)
 - Collections (Poster, summary)
 
-### Settings 
+### Settings ([X] on by default, [ ] off by default)
 
-- Single posters for poster and season poster (on by default)
-- create episode thumbs (off by default)
-- create TV Shows theme songs (off by default)
+- [X] Movie Poster
+- [ ] Movie Art
+- [X] TV Shows Poster
+- [ ] TV Shows Art
+- [ ] TV Shows themes
+- [X] TV Shows Season poster
+- [ ] TV Shows Episode thumbs
+- [X] Artist poster (if in its own folder only?)
+- [X] Album poster
+- [ ] Collection poster
+- [ ] NFO creation
+- [ ] Import NFO/Creation (complement Local media Assets Agent)
 
 ### Installation
 
@@ -44,10 +53,10 @@ Folders Youtube-Agent.bundle-master.zip and copy inside folder Youtube-Agent.bun
 
 If you ask for something already answered in the readme, or post scanner issues on the agent page or vice-versa, please donate (will be refered to as the RTFM tax)
 
-### Possible improvement
+### Possible improvement ([X] to be included in next version)
 
-[ ] XBMC compatible nfo export
-[ ] Import into plex exported Collection and meta if not present (through HTTP post, makes it a double agent)
+- [ ] XBMC compatible nfo export
+- [ ] Import into plex exported Collection and meta if not present (through HTTP post, makes it a double agent)
 
 ### History
 
