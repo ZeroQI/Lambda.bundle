@@ -1,9 +1,23 @@
+###Local Media Export Plex Agent
 
-History
-=======
+This is in development, not yet working but soon will be...
+
+Allow to save locally (estimated for now):
+- Movies: Posters
+- TV_Shows: Series (Posters, art, themes), Season (posters), Episode (thumbs)
+- Music: Artists (poster), Albums (Cover)
+- Collections (Poster, summary)
+
+Settings 
+--------
+- Single posters for poster and season poster (on by default)
+- create episode thumbs (off by default)
+- create TV Shows theme songs (off by default)
 
 Installation
 ============
+
+No need for Plex token!
 
 Here is how to find the plug-in folder location:
 https://support.plex.tv/hc/en-us/articles/201106098-How-do-I-find-the-Plug-Ins-folder-
@@ -31,6 +45,16 @@ Troubleshooting:
 ================
 If you ask for something already answered in the readme, or post scanner issues on the agent page or vice-versa, please donate (will be refered to as the RTFM tax)
 
+Possible improvement
+====================
+[ ] XBMC compatible nfo export
+[ ] Import into plex exported Collection and meta if not present (through HTTP post, makes it a double agent)
+
+History
+=======
+Commissionned by rbeatse
+ on the forum post: https://forums.plex.tv/t/looking-for-a-developer-to-make-an-app/274692
+ 
 Donation link:
 ==============
-PayPal.Me/ZeroQI or https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S8CUKCX4CWBBG&lc=IE&item_name=Plex%20movies%20and%20TV%20series%20Youtube%20Agent&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted
+[PayPal.Me/ZeroQI](https://PayPal.Me/ZeroQI) or better [Donation link](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S8CUKCX4CWBBG&lc=IE&item_name=ZeroQI&item_number=Local%20Media%20Agent&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
