@@ -76,17 +76,32 @@ def Search(results, media, lang, manual, agent_type):
   Log.Info('Search(metadata, media="{}", lang="{}", manual={}, agent_type={})'.format(media.title, lang, manual, agent_type))
   metadata = media.primary_metadata
   
-  ### Plex Library XML ###
-  PLEX_LIBRARY, PLEX_LIBRARY_URL = {}, "http://127.0.0.1:32400/library/sections"    # Allow to get the library name to get a log per library https://support.plex.tv/hc/en-us/articles/204059436-Finding-your-account-token-X-Plex-Token
+  ### PLEX_LIBRARY_URL ###
+  PLEX_LIBRARY = {}
   try:
-    library_xml = XML.ElementFromURL(PLEX_LIBRARY_URL)
-    for library in library_xml.iterchildren('Directory'):
-      for path in library.iterchildren('Location'):
+    PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_LIBRARY_URL, timeout=float(TIMEOUT))
+    for library in PLEX_LIBRARY_XML.iterchildren('Directory'):
+      for  path in library.iterchildren('Location'):
         PLEX_LIBRARY[path.get("path")] = library.get("key")
-        Log.Info( path.get("path") + " = " + library.get("key") )
   except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info('PLEX_LIBRARY: {}'.format(PLEX_LIBRARY))
   
+  ### PLEX_TVSHOWS_URL ###
+  #count= 0
+  #while True:
+  #  PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE), timeout=float(TIMEOUT))
+  #  count +=1
+  #  if  int(partMedias.get('size')) == 0 or bScanStatus == 3:  break
+  #
+  
+  ### PLEX_SEASONS_URL ###
+  ### Season loop for season posters
+  #PLEX_SEASONS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE), timeout=float(TIMEOUT))
+  
+  ### PLEX_COLLECT_URL ###
+  ### Collection loop for collection poster, summary
+  #PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE), timeout=float(TIMEOUT))
+
   ###Series loop for posters, art, themes
   #http://127.0.0.1:32400/library/sections/X/all?type=2
   #posterUrl = ''.join((misc.GetLoopBack(), '/photo/:/transcode?width=', str(Prefs['Poster_Width']), '&height=', str(Prefs['Poster_Hight']),'&minSize=1&url=', String.Quote(rowentry['Poster url'])))
@@ -95,13 +110,44 @@ def Search(results, media, lang, manual, agent_type):
   #    handler.write(HTTP.Request(posterUrl).content)
   #except Exception, e:  Log.Exception('Exception was %s' % str(e))
      
-
-  ### Season loop for season posters
-  #http://127.0.0.1:32400/library/sections/X/all?type=3
+  '''
   
-  ### Collection loop for collection poster, summary
-  #http://127.0.0.1:32400/library/sections/X/all?type=18
-    
+  @route(PREFIX + '/scanMovieDB')
+  def scanMovieDB(myMediaURL, outFile):
+    Log.Debug("*** Starting scanMovieDB with an URL of %s ***" % myMediaURL)
+    Log.Debug('Movie Export level is %s' % Prefs['Movie_Level'])
+    global bScanStatusCount, bScanStatusCountOf, global bScanStatus
+    bScanStatusCount, bScanStatusCountOf, iCurrent = 0, 0, 0
+    try:
+        Log.Debug("About to open file %s" % outFile)
+        output.createHeader(outFile, 'movies')
+        bExtraInfo = False if Prefs['Movie_Level'] in moviefields.singleCall else True
+        while True:
+            Log.Debug("Walking medias")
+            iCount     = bScanStatusCount
+            partMedias = XML.ElementFromURL(''.join((myMediaURL, '?X-Plex-Container-Start=', str(iCurrent), '&X-Plex-Container-Size=', str(CONTAINERSIZEMOVIES))), timeout=float(PMSTIMEOUT))
+            if bScanStatusCount == 0:
+                bScanStatusCountOf = partMedias.get('totalSize')
+                Log.Debug('Amount of items in this section is %s' % bScanStatusCountOf)
+            Log.Debug("Retrieved part of medias okay [%s of %s]" % ( str(bScanStatusCount), str(bScanStatusCountOf)))
+            medias = partMedias.xpath('.//Video')
+            for media in medias:
+                if bExtraInfo:  media = XML.ElementFromURL(genParam(''.join((misc.GetLoopBack(), '/library/metadata/', misc.GetRegInfo(media, 'ratingKey') )) ),  timeout=float(PMSTIMEOUT)).xpath('//Video')[0]
+                myRow = {}
+                output.writerow(movies.getMovieInfo(media, myRow))
+                iCurrent         += 1
+                bScanStatusCount += 1
+                Log.Debug("Media #%s from database: '%s'" % ( str(iCurrent),  misc.GetRegInfo(media, 'title')))
+            # Got to the end of the line?
+            if int(partMedias.get('size')) == 0 or bScanStatus == 3:  break
+        output.closefile()
+    except ValueError, Argument:
+        Log.Critical('Unknown error in scanMovieDb %s' % Argument)
+        bScanStatus = 99
+        raise
+    Log.Debug("******* Ending scanMovieDB ***********")
+  '''
+  
   #--------------------------------------------------------------------------------------------------------------------------------------------------
   if agent_type in ('Movies', 'TV_Shows'):
   
@@ -241,5 +287,11 @@ class LMEAlbumAgent(Agent.Album):
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'Album')
         
 ### Variables ###
-PlexRoot          = os.path.abspath(os.path.join(os.path.dirname(inspect.getfile(inspect.currentframe())), "..", "..", "..", ".."))
-CachePath         = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.hama", "DataItems")
+PlexRoot         = os.path.abspath(os.path.join(os.path.dirname(inspect.getfile(inspect.currentframe())), "..", "..", "..", ".."))
+CachePath        = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.hama", "DataItems")
+PLEX_LIBRARY_URL = 'http://127.0.0.1:32400/library/sections'  
+PLEX_TVSHOWS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=2&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_SEASONS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=3&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_COLLECT_URL = 'http://127.0.0.1:32400/library/sections/X/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+TIMEOUT          = 30
+WINDOW_SIZE      = {'Movies': 30, 'TV_Shows': 20, 'Artist': 10, 'Album': 10, 'Photo': 20}
