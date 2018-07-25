@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 '''
+- [ ] Stage 1: Movies: Poster, art saved if not present or if file changed
+- [ ] Stage 2: TV: Single series poster art, season themes thumbs
+- [ ] Stage 3: Music libraries
+- [ ] Stage 4: Collections
+- [ ] Stage 5: NFO + import NFO
 '''
 
 ### Imports ###
@@ -56,12 +61,12 @@ def GetMediaDir (media, agent_type):
       else:             return os.path.dirname(dir), ''
 
 def SaveFile(filename, content, field=''):
-  if os.path.exists(filename):
-    Log.Info('[#] {}: {}'.format(field, os.path.basename(filename)))
+  if os.path.exists(filename) and os.path.getsize(filename)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(filename)))
   else:
-    Log.Info('[*] {}: {}'.format(field, os.path.basename(filename)))
+    Log.Info('[{}] {}: {}'.format('!' if os.path.exists(filename) else '*', field, os.path.basename(filename)))
     try:
-      with open(filename, 'wb') as file:  file.write(content)
+      with open(filename, 'wb') as file:
+        file.write(content)
     except Exception as e:  Log.Info('Exception: "{}"'.format(e))
 
 def Start():
@@ -76,77 +81,91 @@ def Search(results, media, lang, manual, agent_type):
   Log.Info('Search(metadata, media="{}", lang="{}", manual={}, agent_type={})'.format(media.title, lang, manual, agent_type))
   metadata = media.primary_metadata
   
-  ### PLEX_LIBRARY_URL ###
+  ### PLEX_LIBRARY_URL - Plex libraries ###
+  '''
+  <MediaContainer size="3" allowSync="0" identifier="com.plexapp.plugins.library" mediaTagPrefix="/system/bundle/media/flags/" mediaTagVersion="1390169701" title1="Plex Library">
+    <Directory allowSync="0" art="/:/resources/movie-fanart.jpg" filters="1" refreshing="0" thumb="/:/resources/movie.png" key="29" type="movie" title="Movies" agent="com.plexapp.agents.imdb" scanner="Plex Movie Scanner" language="en" uuid="07a4b132-a67b-477e-a245-585935d08c0b" updatedAt="1394559305" createdAt="1390438950">
+      <Location id="4" path="/Users/plexuser/Movies/Media/Movies"/>
+    </Directory>
+    <Directory allowSync="0" art="/:/resources/artist-fanart.jpg" filters="1" refreshing="0" thumb="/:/resources/artist.png" key="31" type="artist" title="Music" agent="com.plexapp.agents.lastfm" scanner="Plex Music Scanner" language="en" uuid="10254ef0-a0a4-481b-ad9c-46ab3db39d0b" updatedAt="1394039950" createdAt="1390440566">
+      <Location id="7" path="/Users/plexuser/Movies/Media/Music"/>
+   </Directory>
+   <Directory allowSync="0" art="/:/resources/show-fanart.jpg" filters="1" refreshing="0" thumb="/:/resources/show.png" key="30" type="show" title="Television" agent="com.plexapp.agents.thetvdb" scanner="Plex Series Scanner" language="en" uuid="540e7c98-5a92-4e8f-b255-9cca2870060c" updatedAt="1394482680" createdAt="1390438925">
+      <Location id="3" path="/Users/plexuser/Movies/Media/TV Shows"/>
+   </Directory>
+  </MediaContainer>
+  '''
   PLEX_LIBRARY = {}
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_LIBRARY_URL, timeout=float(TIMEOUT))
     for library in PLEX_LIBRARY_XML.iterchildren('Directory'):
       for  path in library.iterchildren('Location'):
         PLEX_LIBRARY[path.get("path")] = library.get("key")
+        #<MediaContainer   
+        #Directory         art="/:/resources/movie-fanart.jpg" thumb="/:/resources/artist.png" key="31" type="artist" title="Music" language="en" agent="com.plexapp.agents.lastfm" scanner="Plex Music Scanner" 
+        #Location:         id="7" path="/Users/plexuser/Movies/Media/Music"/
   except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info('PLEX_LIBRARY: {}'.format(PLEX_LIBRARY))
   
-  ### PLEX_TVSHOWS_URL ###
-  #count= 0
-  #while True:
-  #  PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE), timeout=float(TIMEOUT))
-  #  count +=1
-  #  if  int(partMedias.get('size')) == 0 or bScanStatus == 3:  break
-  #
-  
-  ### PLEX_SEASONS_URL ###
-  ### Season loop for season posters
-  #PLEX_SEASONS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE), timeout=float(TIMEOUT))
-  
-  ### PLEX_COLLECT_URL ###
-  ### Collection loop for collection poster, summary
-  #PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE), timeout=float(TIMEOUT))
+  ### PLEX_TVSHOWS_URL - TV Shows###
+  count = 0
+  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) != 0:
+    try:
+      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      count += 1
+      total  = PLEX_TVSHOWS_XML.get('totalSize')
+      Log.Debug("PLEX_TVSHOWS_URL size: {} [{} of {}]".format(PLEX_TVSHOWS_XML.get('size'), count, total))
+      for media in PLEX_TVSHOWS_XML.xpath('.//Video'):
+        Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+        #"thumb=" 
+        #banner
+        #themes
+        
+    except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
 
   ###Series loop for posters, art, themes
-  #http://127.0.0.1:32400/library/sections/X/all?type=2
-  #posterUrl = ''.join((misc.GetLoopBack(), '/photo/:/transcode?width=', str(Prefs['Poster_Width']), '&height=', str(Prefs['Poster_Hight']),'&minSize=1&url=', String.Quote(rowentry['Poster url'])))
+  #XML: thumb="/library/metadata/25199/thumb/1398798243"
+  #http://127.0.0.1:32400/library/metadata/25199/thumb/1398798243
   #try:
   #  with io.open(os.path.join(posterDir, rowentry['Media ID'] + '.jpg'), 'wb') as handler:
-  #    handler.write(HTTP.Request(posterUrl).content)
+  #    handler.write(HTTP.Request('http://127.0.0.1:32400/photo/:/transcode?width={}&height={}&minSize=1&url={}', String.Quote(rowentry['Poster url'])).content)
   #except Exception, e:  Log.Exception('Exception was %s' % str(e))
-     
+ 
+  ### PLEX_SEASONS_URL  - TV Shows seasons ###
   '''
-  
-  @route(PREFIX + '/scanMovieDB')
-  def scanMovieDB(myMediaURL, outFile):
-    Log.Debug("*** Starting scanMovieDB with an URL of %s ***" % myMediaURL)
-    Log.Debug('Movie Export level is %s' % Prefs['Movie_Level'])
-    global bScanStatusCount, bScanStatusCountOf, global bScanStatus
-    bScanStatusCount, bScanStatusCountOf, iCurrent = 0, 0, 0
+    <MediaContainer size="1" allowSync="1" identifier="com.plexapp.plugins.library" librarySectionID="2" librarySectionTitle="Old TV Shows" librarySectionUUID="94102838-a992-411c-b237-cedaf41e26f0" mediaTagPrefix="/system/bundle/media/flags/" mediaTagVersion="1531739939">
+    <Directory ratingKey="5687" key="/library/metadata/5687/children" parentRatingKey="5638" guid="com.plexapp.agents.thetvdb://268592/1?lang=en" librarySectionTitle="Old TV Shows" librarySectionID="2" librarySectionKey="/library/sections/2" type="season" title="Season 1" parentKey="/library/metadata/5638" parentTitle="The 100" summary="" index="1" parentIndex="1" thumb="/library/metadata/5687/thumb/1532246173" art="/library/metadata/5638/art/1532247429" parentThumb="/library/metadata/5638/thumb/1532247429" parentTheme="/library/metadata/5638/theme/1532247429" leafCount="13" viewedLeafCount="0" addedAt="1532246025" updatedAt="1532246173">
+    <Extras size="0"> </Extras>
+    </Directory>
+    </MediaContainer>
+  '''
+  count = 0
+  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) != 0:
     try:
-        Log.Debug("About to open file %s" % outFile)
-        output.createHeader(outFile, 'movies')
-        bExtraInfo = False if Prefs['Movie_Level'] in moviefields.singleCall else True
-        while True:
-            Log.Debug("Walking medias")
-            iCount     = bScanStatusCount
-            partMedias = XML.ElementFromURL(''.join((myMediaURL, '?X-Plex-Container-Start=', str(iCurrent), '&X-Plex-Container-Size=', str(CONTAINERSIZEMOVIES))), timeout=float(PMSTIMEOUT))
-            if bScanStatusCount == 0:
-                bScanStatusCountOf = partMedias.get('totalSize')
-                Log.Debug('Amount of items in this section is %s' % bScanStatusCountOf)
-            Log.Debug("Retrieved part of medias okay [%s of %s]" % ( str(bScanStatusCount), str(bScanStatusCountOf)))
-            medias = partMedias.xpath('.//Video')
-            for media in medias:
-                if bExtraInfo:  media = XML.ElementFromURL(genParam(''.join((misc.GetLoopBack(), '/library/metadata/', misc.GetRegInfo(media, 'ratingKey') )) ),  timeout=float(PMSTIMEOUT)).xpath('//Video')[0]
-                myRow = {}
-                output.writerow(movies.getMovieInfo(media, myRow))
-                iCurrent         += 1
-                bScanStatusCount += 1
-                Log.Debug("Media #%s from database: '%s'" % ( str(iCurrent),  misc.GetRegInfo(media, 'title')))
-            # Got to the end of the line?
-            if int(partMedias.get('size')) == 0 or bScanStatus == 3:  break
-        output.closefile()
-    except ValueError, Argument:
-        Log.Critical('Unknown error in scanMovieDb %s' % Argument)
-        bScanStatus = 99
-        raise
-    Log.Debug("******* Ending scanMovieDB ***********")
-  '''
+      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      count += 1
+      total  = PLEX_TVSHOWS_XML.get('totalSize')
+      Log.Debug("PLEX_TVSHOWS_URL size: {} [{} of {}]".format(PLEX_TVSHOWS_XML.get('size'), count, total))
+      for media in PLEX_TVSHOWS_XML.xpath('.//Video'):
+        Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+        #librarySectionID="2" librarySectionTitle="Old TV Shows" 
+        #MediaContainer>Directory type="season" title="Season 1" thumb="/library/metadata/5687/thumb/1532246173" art="/library/metadata/5638/art/1532247429" parentThumb="/library/metadata/5638/thumb/1532247429"
+    except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+
+  
+  ### PLEX_COLLECT_URL - Collection loop for collection poster, summary ###
+  # "http://IPOfPMS:32400/library/sections/X/all?collection=15213" <Collection id="15213" filter="collection=15213" tag="28 Days/Weeks Later"/>
+  #  xxx.get('Collection')
+  count = 0
+  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) != 0:
+    try:
+      PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_COLLECT_XML.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      count += 1
+      total  = PLEX_TVSHOWS_XML.get('totalSize')
+      Log.Debug("PLEX_TVSHOWS_URL size: {} [{} of {}]".format(PLEX_TVSHOWS_XML.get('size'), count, total))
+      for media in PLEX_TVSHOWS_XML.xpath('.//Video'):
+        Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+    except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
   
   #--------------------------------------------------------------------------------------------------------------------------------------------------
   if agent_type in ('Movies', 'TV_Shows'):
@@ -292,6 +311,6 @@ CachePath        = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexap
 PLEX_LIBRARY_URL = 'http://127.0.0.1:32400/library/sections'  
 PLEX_TVSHOWS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=2&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_SEASONS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=3&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_COLLECT_URL = 'http://127.0.0.1:32400/library/sections/X/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_COLLECT_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 TIMEOUT          = 30
 WINDOW_SIZE      = {'Movies': 30, 'TV_Shows': 20, 'Artist': 10, 'Album': 10, 'Photo': 20}
