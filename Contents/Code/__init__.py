@@ -229,10 +229,10 @@ def Update(metadata, media, lang, force, agent_type):
   '''
   count, found = 0, False
   parentRatingKey=""
-  while count==0 or int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type]:
+  while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
     try:
       PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-      total = PLEX_TVSHOWS_XML.get('totalSize')
+      total = int(PLEX_TVSHOWS_XML.get('totalSize'))
       Log.Debug("PLEX_TVSHOWS_URL [{}-{} of {}]".format(count+1, count+int(PLEX_TVSHOWS_XML.get('size')) ,total))
       for show in PLEX_TVSHOWS_XML.iterchildren('Directory'):
         if media.title==show.get('title'):
@@ -275,7 +275,7 @@ def Update(metadata, media, lang, force, agent_type):
     </MediaContainer>
   '''
   count, found = 0, False
-  while count==0 or int(PLEX_SEASONS_XML.get('size')) == WINDOW_SIZE[agent_type]:
+  while count==0 or count<total and int(PLEX_SEASONS_XML.get('size')) == WINDOW_SIZE[agent_type]:
     try:
       PLEX_SEASONS_XML = XML.ElementFromURL(PLEX_SEASONS_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
       total  = PLEX_SEASONS_XML.get('totalSize')
@@ -286,23 +286,22 @@ def Update(metadata, media, lang, force, agent_type):
           Log.Debug("title: '{}'".format(show.get('title')))
           if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title'), 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
           if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title'), 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
-      else:  count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+    count += WINDOW_SIZE[agent_type]
 
   ### PLEX_COLLECT_URL - Collection loop for collection poster, summary ###
   # "http://IPOfPMS:32400/library/sections/X/all?collection=15213" <Collection id="15213" filter="collection=15213" tag="28 Days/Weeks Later"/>
   #  xxx.get('Collection')
   count = 0
-  while count==0 or int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]:
+  while count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]:
     try:
       PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_COLLECT_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
       total  = PLEX_COLLECT_XML.get('totalSize')
-      Log.Debug("PLEX_TVSHOWS_URL size: [{}-{} of {}]".format(count+1, count+int(PLEX_COLLECT_XML.get('size')), total))
+      Log.Debug("PLEX_COLLECT_URL size: [{}-{} of {}]".format(count+1, count+int(PLEX_COLLECT_XML.get('size')), total))
       for media in PLEX_COLLECT_XML.xpath('.//Video'):
         Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
-      count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-
+    count += WINDOW_SIZE[agent_type]
   
 ### Agent declaration ##################################################################################################################################################
 class LMETVAgent(Agent.TV_Shows):  # 'com.plexapp.agents.none', 'com.plexapp.agents.opensubtitles'
