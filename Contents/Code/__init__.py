@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 '''
-- [ ] Stage 1: Movies: Poster, art saved if not present or if file changed
-- [ ] Stage 2: TV: Single series poster art, season themes thumbs
+- [X] Stage 1: TV: poster, art, banner, themes, season poster, season art saved if not present or if file changed
+- [ ] Stage 4: Collections poster, summary + import
+- [ ] Stage 2: Movies: Poster, art 
 - [ ] Stage 3: Music libraries
-- [ ] Stage 4: Collections
 - [ ] Stage 5: NFO + import NFO
 '''
 
@@ -284,8 +284,8 @@ def Update(metadata, media, lang, force, agent_type):
         if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
           Log.Info(XML.StringFromElement(show))
           Log.Debug("title: '{}'".format(show.get('title')))
-          if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title'), 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
-          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title'), 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
+          if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
+          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
     count += WINDOW_SIZE[agent_type]
 
