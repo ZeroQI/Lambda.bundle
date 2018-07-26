@@ -4,24 +4,24 @@ This is in development, not yet working but soon will be...
 
 Allow to save locally (estimated for now):
 - Movies: Posters
-- TV_Shows: Series (Posters, art, themes), Season (posters), Episode (thumbs)
-- Music: Artists (poster), Albums (Cover)
+- TV_Shows: Series (Posters, art, banner, theme), Season (posters, art)
 - Collections (Poster, summary)
+- Music: Artists (poster), Albums (Cover)
 
 ### Settings ([X] on by default, [ ] off by default)
 
-- [X] Movie Poster
-- [ ] Movie Art
+- [ ] TV Shows themes
 - [X] TV Shows Poster
 - [ ] TV Shows Art
-- [ ] TV Shows themes
 - [X] TV Shows Season poster
-- [ ] TV Shows Episode thumbs
+- [X] Collection Poster
+- [X] Collection Art
+- [X] Movie Poster
+- [ ] Movie Art
 - [X] Artist poster (if in its own folder only?)
 - [X] Album poster
-- [ ] Collection poster
 - [ ] NFO creation
-- [ ] Import NFO/Creation (complement Local media Assets Agent)
+- [X] Import NFO/Creation (complement Local media Assets Agent)
 
 ### Installation
 
