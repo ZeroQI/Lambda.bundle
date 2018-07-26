@@ -1,8 +1,9 @@
 ## Local Media Export Plex Agent
 
 This is in development, not yet working but soon will be...
+- only tv show: poster banner theme, art, season poster, art working for now
 
-Allow to save locally (estimated for now):
+Allow to save locally:
 - Movies: Posters
 - TV_Shows: Series (Posters, art, banner, theme), Season (posters, art)
 - Collections (Poster, summary)
