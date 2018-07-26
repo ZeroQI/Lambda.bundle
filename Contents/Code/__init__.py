@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 '''
-- [X] Stage 1: TV: poster, art, banner, themes, season poster, season art saved if not present or if file changed
-- [ ] Stage 4: Collections poster, summary + import
-- [ ] Stage 2: Movies: Poster, art 
+- [ ] Stage 1: Movies: Poster, art saved if not present or if file changed
+- [ ] Stage 2: TV: Single series poster art, season themes thumbs
 - [ ] Stage 3: Music libraries
+- [ ] Stage 4: Collections
 - [ ] Stage 5: NFO + import NFO
 '''
 
@@ -86,14 +86,14 @@ def Search(results, media, lang, manual, agent_type):
   
     #dir, filenoext = GetMediaDir (media, agent_type)
     #folder/poster/show show-2.ext
-    #art/backdrop/background/fanart
+    #art/backdrop/fanart/fanart
     results.Append(MetadataSearchResult(id = 'null', name=media.title, score = 100))
     
   #--------------------------------------------------------------------------------------------------------------------------------------------------
   if agent_type=='Movies':
     pass
     #folder/poster/show show-2.ext
-    #art/backdrop/background/fanart
+    #art/backdrop/fanart/fanart
     
   #--------------------------------------------------------------------------------------------------------------------------------------------------
   if agent_type=='show':
@@ -208,6 +208,7 @@ def Update(metadata, media, lang, force, agent_type):
   </MediaContainer>
   '''
   PLEX_LIBRARY = {}
+  key, path = '', ''
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_LIBRARY_URL, timeout=float(TIMEOUT))
     for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
@@ -217,7 +218,8 @@ def Update(metadata, media, lang, force, agent_type):
           if dir and location.get("path") in dir:
             Log.Info('[=] id: {:>2}, path: {}'.format(location.get("id"), location.get("path")))
             PLEX_LIBRARY[location.get("path")] = directory.get("key")
-            key = directory.get("key")
+            key  = directory.get("key")
+            path = location.get("path")
           else:                                    Log.Info('[ ] id: {:>2}, path: {}'.format(location.get("id"), location.get("path")))
           
   except Exception as e:  Log.Info("Exception: '{}'".format(e))
@@ -227,8 +229,9 @@ def Update(metadata, media, lang, force, agent_type):
   '''
   <Directory ratingKey="2064" key="/library/metadata/2064/children" studio="Sunrise" type="show" title="Cowboy Bebop" contentRating="TV-MA" summary="The year is 2071 AD. With the systematic collapse of the old nation-states, a mixed jumble of races and peoples were driven out of their terrestrial Eden and spread to the stars, taking with them the now confused concepts of justice, freedom, violence, and love. New rules were established, and a new generation of bounty hunters came into being. People referred to these bounty hunters as &quot;cowboys&quot;.&#10;Meet Spike Spiegel and Jet Black, a drifter and a retired cyborg cop who have started a bounty hunting partnership. In the converted ship The Bebop, Spike and Jet search the galaxy for criminals with bounties on their heads. They meet a lot of interesting characters, including the unusually intelligent dog Ein, the bizarre hacker child prodigy Ed, and the voluptuous and vexing femme fatale, Faye Valentine.&#10;Source: AnimeNfo&#10;Note: Originally aired on TV Tokyo, but after 12 episodes the show was cancelled due to the violence portrayed in the Cowboy Bebop world and violence in Japanese schools. The final and also the 13th episode on TV Tokyo was a compilation episode where the characters provide a philosophical commentary and end with the words: &quot;[i]This Is Not The End. You Will See The Real &quot;Cowboy Bebop&quot; Someday!&quot; Four months later, WOWOW started to broadcast all 26 episodes of Cowboy Bebop. The ordering was different with completely new episodes mixed in between episodes previously broadcast on TV Tokyo, including a new episode 1.[/i]" index="1" rating="8.6" year="1998" thumb="/library/metadata/2064/thumb/1527940525" art="/library/metadata/2064/art/1527940525" banner="/library/metadata/2064/banner/1527940525" theme="/library/metadata/2064/theme/1527940525" duration="1500000" originallyAvailableAt="1998-04-03" leafCount="1" viewedLeafCount="0" childCount="1" addedAt="1523205540" updatedAt="1527940525">
   '''
-  count, found = 0, False
-  parentRatingKey=""
+  count, found    = 0, False
+  parentRatingKey = ""
+  collections     = []
   while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
     try:
       PLEX_TVSHOWS_XML = XML.ElementFromURL(PLEX_TVSHOWS_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
@@ -246,11 +249,13 @@ def Update(metadata, media, lang, force, agent_type):
           #Log.Info('originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
           
           if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, 'poster.jpg'    ), 'poster')
-          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'background.jpg'), 'art'   )
+          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'fanart.jpg'), 'art'   )
           if show.get('banner'   ):  SaveFile(PLEX_SERVER_NAME+show.get('banner'), os.path.join(dir, 'banner.jpg'    ), 'banner')
           if show.get('theme'    ):  SaveFile(PLEX_SERVER_NAME+show.get('theme' ), os.path.join(dir, 'theme.mp3'     ), 'theme' )
           if show.get('ratingKey'):  parentRatingKey = show.get('ratingKey')
           #if show.get('key'      ):  Log.Info('[ ] key:                   {}'.format(show.get('key'      ))); 
+          for collection in show.iterchildren('Collection'):
+            Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
           #Log.Info(XML.StringFromElement(show))
           found = True
           break
@@ -285,7 +290,7 @@ def Update(metadata, media, lang, force, agent_type):
           Log.Info(XML.StringFromElement(show))
           Log.Debug("title: '{}'".format(show.get('title')))
           if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
-          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
+          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-fanart.jpg' if show.get('title')=='Specials' else show.get('title')+'-fanart.jpg'), 'season_art'   )
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
     count += WINDOW_SIZE[agent_type]
 
@@ -293,13 +298,20 @@ def Update(metadata, media, lang, force, agent_type):
   # "http://IPOfPMS:32400/library/sections/X/all?collection=15213" <Collection id="15213" filter="collection=15213" tag="28 Days/Weeks Later"/>
   #  xxx.get('Collection')
   count = 0
-  while count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]:
+  while collections and (count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]):
     try:
       PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_COLLECT_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
       total  = PLEX_COLLECT_XML.get('totalSize')
       Log.Debug("PLEX_COLLECT_URL size: [{}-{} of {}]".format(count+1, count+int(PLEX_COLLECT_XML.get('size')), total))
-      for media in PLEX_COLLECT_XML.xpath('.//Video'):
-        Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+      for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
+        if  directory.get('title') in collections:
+          #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
+          Log.Debug("[ ] Directory: '{}'".format( directory.get('title') ))
+          dirname = os.path.join(path, '_Collections', directory.get('title'))
+          #Log.Info('summary:               {}'.format(directory.get('summary')))
+          if (directory.get('art') or directory.get('thumb')) and not os.path.exists(dirname):  os.makedirs(dirname)
+          if directory.get('thumb'):  SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(dirname, 'poster.jpg'), 'collection_poster')
+          if directory.get('art'  ):  SaveFile(PLEX_SERVER_NAME+directory.get('art'   ), os.path.join(dirname, 'fanart.jpg'), 'collection_fanart')
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
     count += WINDOW_SIZE[agent_type]
   
