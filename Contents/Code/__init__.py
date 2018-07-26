@@ -79,11 +79,119 @@ def Start():
 ### Download metadata using unique ID ###
 def Search(results, media, lang, manual, agent_type):
   
+  metadata = media.primary_metadata
+  
+  #--------------------------------------------------------------------------------------------------------------------------------------------------
+  if agent_type in ('Movies', 'TV_Shows'):
+  
+    #dir, filenoext = GetMediaDir (media, agent_type)
+    #folder/poster/show show-2.ext
+    #art/backdrop/background/fanart
+    results.Append(MetadataSearchResult(id = 'null', name=media.title, score = 100))
+    
+  #--------------------------------------------------------------------------------------------------------------------------------------------------
+  if agent_type=='Movies':
+    pass
+    #folder/poster/show show-2.ext
+    #art/backdrop/background/fanart
+    
+  #--------------------------------------------------------------------------------------------------------------------------------------------------
+  if agent_type=='show':
+    '''  
+    dir, _ = GetMediaDir(media, agent_type)  #Log.Info(dir)
+    for root in [os.sep.join(dir.split(os.sep)[0:x+2]) for x in range(0, dir.count(os.sep))]:
+      if root in PLEX_LIBRARY:
+        key = PLEX_LIBRARY[root]
+        Log.Info('key: {}, root: {}'.format(key, root))
+        break
+    else:  key='';  Log.Info('[!] Library access denied')  #401 no right to list libraries (windows)
+    
+    ###Theme song "theme.mp3”
+    for url in metadata.themes.keys():  SaveFile(os.path.join(dir, 'themes.mp3'), metadata.themes[url], 'themes');  break
+    else: Log.Info("[ ] themes: None")
+    
+    ###Series poster
+    #posters = metadata.posters
+    #Log.Info("{}".format(dir(posters.keys)))
+    #for url in posters.keys():
+      #filename = 'season-specials-poster' if season=='0' else 'Season{:02}'.format(int(season))
+      #if len(posters.keys()) > 1:  filename += chr(ord('a')+posters.keys().index(url))
+      #SaveFile(os.path.join(dir, filename+os.path.splitext(url)[1]), posters[url], 'posters')
+      #if posters.keys().index(url)==25:  break
+    #  pass
+    
+    ###Season loop
+    for season in sorted(media.seasons, key=natural_sort_key):  # For each season, media, then use metadata['season'][season]...
+      Log.Info("metadata.seasons[{:>2}]".format(season).ljust(157, '-'))
+      
+      dirs=[]
+      for episode in media.seasons[season].episodes:
+        dir = os.path.dirname(media.seasons[season].episodes[episode].items[0].parts[0].file)
+        if dir not in dirs:  dirs.append(dir)
+      
+      #Season poster
+      #Log.Info(metadata.seasons[season].attrs.keys())
+      #for i in inspect.getmembers(metadata.seasons[season]):  # Ignores anything starting with underscore (that is, private and protected attributes)
+      #  Log.Info(i)
+      for url in metadata.seasons[season].posters.keys():
+        filename = 'season-specials-poster' if season=='0' else 'Season{:02}'.format(int(season))
+        if len(metadata.seasons[season].posters.keys()) > 1:  filename += chr(ord('a')+metadata.seasons[season].posters.keys().index(url))
+        SaveFile(os.path.join(dir, filename+os.path.splitext(url)[1]), metadata.seasons[season].posters[url], 'posters')
+        if metadata.seasons[season].posters.keys().index(url)==25:  break
+        
+      ###Episodes Loop
+      for episode in sorted(media.seasons[season].episodes, key=natural_sort_key):
+        Log.Info("metadata.seasons[{:>2}].episodes[{:>3}]".format(season, episode))
+        dir, file = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)
+        thumbs    = getattr(metadata.seasons[season].episodes[episode], 'thumbs')
+        for url in thumbs.keys():  SaveFile(os.path.join(dir, os.path.join(os.path.splitext(file)[0]+os.path.splitext(url)[1])), thumbs[url], 'thumbs');  break
+        else:                      Log.Info('thumbs.keys(): {}'.format(thumbs.keys()))
+    '''    
+    results.Append(MetadataSearchResult(id = 'null', name=media.show, score = 100))
+  #--------------------------------------------------------------------------------------------------------------------------------------------------
+  if agent_type=='Artist':
+    '''
+    metadata.title = None  # Clear out the title to ensure stale data doesn't clobber other agents' contributions.
+    
+    for album in media.children:
+      Log.Info('[ ] Album title: {}'.format(album.title))
+      #Log.Info('[ ] Album posters:      {}'.format(metadata.keys()))
+      for track in album.children:
+        file     = track.items[0].parts[0].file
+        filename = os.path.basename(file)
+      Log.Info('[ ] Artist:      {}'.format(media.title))
+    Log.Info('[ ] Artist posters:      {}'.format(metadata.posters.keys()))
+    Log.Info('[ ] Artist art:          {}'.format(metadata.art.keys()))
+    for album in media.children:
+      Log.Info('[ ] Album title: {}'.format(album.title))
+      #Log.Info('[ ] Album posters:      {}'.format(metadata.keys()))
+      for track in album.children:
+        file     = track.items[0].parts[0].file
+        filename = os.path.basename(file)
+        path     = os.path.dirname (file)
+        ext      = filename[1:] if filename.count('.')==1 and file.startswith('.') else os.path.splitext(filename)[1].lstrip('.').lower()
+        title    = filename[:-len(ext)+1]
+        lrc      = filename[:-len(ext)+1]+'.lrc'
+        
+        # Chech if lrc file present
+        if os.path.exists(lrc):  Log.Info('[X] Track: {}, filename: {}, file: {}'.format('', lrc, file))
+        else:
+          Log.Info('[ ] Track title: {}, file: {}'.format(track.title, file))
+          # Check if embedded lrc and decompress
+          # https://github.com/dmo60/lLyrics/issues/26
+    '''      
+    results.Append(MetadataSearchResult(id = 'null', name=media.artist, score = 100))
+  #--------------------------------------------------------------------------------------------------------------------------------------------------
+  if agent_type=='Album':
+    results.Append(MetadataSearchResult(id = 'null', score = 100))
   Log(''.ljust(157, '='))
-  Log.Info('Search(metadata, media="{}", lang="{}", manual={}, agent_type={})'.format(media.title, lang, manual, agent_type))
+
+def Update(metadata, media, lang, force, agent_type):
+  
+  Log(''.ljust(157, '='))
+  Log.Info('Update(metadata, media="{}", lang="{}", force={}, agent_type={})'.format(media.title, lang, force, agent_type))
   
   dir      = GetMediaDir(media, agent_type)
-  metadata = media.primary_metadata
   
   ### PLEX_LIBRARY_URL - Plex libraries ###
   '''
@@ -176,8 +284,8 @@ def Search(results, media, lang, manual, agent_type):
         if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
           Log.Info(XML.StringFromElement(show))
           Log.Debug("title: '{}'".format(show.get('title')))
-          if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
-          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
+          if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title'), 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
+          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title'), 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
       else:  count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
 
@@ -194,113 +302,7 @@ def Search(results, media, lang, manual, agent_type):
         Log.Debug("Media #{} from database: '{}'".format( str(count), media.get('title') )) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
       count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-  
-  #--------------------------------------------------------------------------------------------------------------------------------------------------
-  if agent_type in ('Movies', 'TV_Shows'):
-  
-    #dir, filenoext = GetMediaDir (media, agent_type)
-    #folder/poster/show show-2.ext
-    #art/backdrop/background/fanart
-    results.Append(MetadataSearchResult(id = 'null', name=media.title, score = 100))
-    
-  #--------------------------------------------------------------------------------------------------------------------------------------------------
-  if agent_type=='Movies':
-    pass
-    #folder/poster/show show-2.ext
-    #art/backdrop/background/fanart
-    
-  #--------------------------------------------------------------------------------------------------------------------------------------------------
-  if agent_type=='TV_Shows':
-    
-    dir, _ = GetMediaDir(media, agent_type)  #Log.Info(dir)
-    for root in [os.sep.join(dir.split(os.sep)[0:x+2]) for x in range(0, dir.count(os.sep))]:
-      if root in PLEX_LIBRARY:
-        key = PLEX_LIBRARY[root]
-        Log.Info('key: {}, root: {}'.format(key, root))
-        break
-    else:  key='';  Log.Info('[!] Library access denied')  #401 no right to list libraries (windows)
-    
-    ###Theme song "theme.mp3”
-    for url in metadata.themes.keys():  SaveFile(os.path.join(dir, 'themes.mp3'), metadata.themes[url], 'themes');  break
-    else: Log.Info("[ ] themes: None")
-    
-    ###Series poster
-    #posters = metadata.posters
-    #Log.Info("{}".format(dir(posters.keys)))
-    #for url in posters.keys():
-      #filename = 'season-specials-poster' if season=='0' else 'Season{:02}'.format(int(season))
-      #if len(posters.keys()) > 1:  filename += chr(ord('a')+posters.keys().index(url))
-      #SaveFile(os.path.join(dir, filename+os.path.splitext(url)[1]), posters[url], 'posters')
-      #if posters.keys().index(url)==25:  break
-    #  pass
-    
-    ###Season loop
-    for season in sorted(media.seasons, key=natural_sort_key):  # For each season, media, then use metadata['season'][season]...
-      Log.Info("metadata.seasons[{:>2}]".format(season).ljust(157, '-'))
-      
-      dirs=[]
-      for episode in media.seasons[season].episodes:
-        dir = os.path.dirname(media.seasons[season].episodes[episode].items[0].parts[0].file)
-        if dir not in dirs:  dirs.append(dir)
-      
-      #Season poster
-      #Log.Info(metadata.seasons[season].attrs.keys())
-      #for i in inspect.getmembers(metadata.seasons[season]):  # Ignores anything starting with underscore (that is, private and protected attributes)
-      #  Log.Info(i)
-      for url in metadata.seasons[season].posters.keys():
-        filename = 'season-specials-poster' if season=='0' else 'Season{:02}'.format(int(season))
-        if len(metadata.seasons[season].posters.keys()) > 1:  filename += chr(ord('a')+metadata.seasons[season].posters.keys().index(url))
-        SaveFile(os.path.join(dir, filename+os.path.splitext(url)[1]), metadata.seasons[season].posters[url], 'posters')
-        if metadata.seasons[season].posters.keys().index(url)==25:  break
-        
-      ###Episodes Loop
-      for episode in sorted(media.seasons[season].episodes, key=natural_sort_key):
-        Log.Info("metadata.seasons[{:>2}].episodes[{:>3}]".format(season, episode))
-        dir, file = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)
-        thumbs    = getattr(metadata.seasons[season].episodes[episode], 'thumbs')
-        for url in thumbs.keys():  SaveFile(os.path.join(dir, os.path.join(os.path.splitext(file)[0]+os.path.splitext(url)[1])), thumbs[url], 'thumbs');  break
-        else:                      Log.Info('thumbs.keys(): {}'.format(thumbs.keys()))
-        
-    results.Append(MetadataSearchResult(id = 'null', name=media.show, score = 100))
-  #--------------------------------------------------------------------------------------------------------------------------------------------------
-  if agent_type=='Artist':
-    metadata.title = None  # Clear out the title to ensure stale data doesn't clobber other agents' contributions.
-    
-    for album in media.children:
-      Log.Info('[ ] Album title: {}'.format(album.title))
-      #Log.Info('[ ] Album posters:      {}'.format(metadata.keys()))
-      for track in album.children:
-        file     = track.items[0].parts[0].file
-        filename = os.path.basename(file)
-      Log.Info('[ ] Artist:      {}'.format(media.title))
-    Log.Info('[ ] Artist posters:      {}'.format(metadata.posters.keys()))
-    Log.Info('[ ] Artist art:          {}'.format(metadata.art.keys()))
-    for album in media.children:
-      Log.Info('[ ] Album title: {}'.format(album.title))
-      #Log.Info('[ ] Album posters:      {}'.format(metadata.keys()))
-      for track in album.children:
-        file     = track.items[0].parts[0].file
-        filename = os.path.basename(file)
-        path     = os.path.dirname (file)
-        ext      = filename[1:] if filename.count('.')==1 and file.startswith('.') else os.path.splitext(filename)[1].lstrip('.').lower()
-        title    = filename[:-len(ext)+1]
-        lrc      = filename[:-len(ext)+1]+'.lrc'
-        
-        # Chech if lrc file present
-        if os.path.exists(lrc):  Log.Info('[X] Track: {}, filename: {}, file: {}'.format('', lrc, file))
-        else:
-          Log.Info('[ ] Track title: {}, file: {}'.format(track.title, file))
-          # Check if embedded lrc and decompress
-          # https://github.com/dmo60/lLyrics/issues/26
-          
-    results.Append(MetadataSearchResult(id = 'null', name=media.artist, score = 100))
-  #--------------------------------------------------------------------------------------------------------------------------------------------------
-  if agent_type=='Album':
-    results.Append(MetadataSearchResult(id = 'null', score = 100))
-  Log(''.ljust(157, '='))
 
-def Update(metadata, media, lang, force, agent_type):
-  pass
   
 ### Agent declaration ##################################################################################################################################################
 class LMETVAgent(Agent.TV_Shows):  # 'com.plexapp.agents.none', 'com.plexapp.agents.opensubtitles'
