@@ -60,12 +60,14 @@ def GetMediaDir (media, agent_type):
       if len(dirs)==1:  return dir
       else:             return os.path.dirname(dir)
 
-def SaveFile(filename, content, field=''):
-  if os.path.exists(filename) and os.path.getsize(filename)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(filename)))
+def SaveFile(source, destination, field=''):
+  try:                    content = HTTP.Request(source).content
+  except Exception as e:  Log.Info('Exception: "{}"'.format(e));  return
+  if os.path.exists(destination) and os.path.getsize(destination)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(destination)))
   else:
-    Log.Info('[{}] {}: {}'.format('!' if os.path.exists(filename) else '*', field, os.path.basename(filename)))
+    Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
     try:
-      with open(filename, 'wb') as file:
+      with open(destination, 'wb') as file:
         file.write(content)
     except Exception as e:  Log.Info('Exception: "{}"'.format(e))
 
@@ -79,6 +81,8 @@ def Search(results, media, lang, manual, agent_type):
   
   Log(''.ljust(157, '='))
   Log.Info('Search(metadata, media="{}", lang="{}", manual={}, agent_type={})'.format(media.title, lang, manual, agent_type))
+  
+  dir      = GetMediaDir(media, agent_type)
   metadata = media.primary_metadata
   
   ### PLEX_LIBRARY_URL - Plex libraries ###
@@ -96,7 +100,6 @@ def Search(results, media, lang, manual, agent_type):
   </MediaContainer>
   '''
   PLEX_LIBRARY = {}
-  dir          = GetMediaDir(media, agent_type)
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_LIBRARY_URL, timeout=float(TIMEOUT))
     for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
@@ -134,19 +137,19 @@ def Search(results, media, lang, manual, agent_type):
           #Log.Info('duration:              {}'.format(show.get('duration')))
           #Log.Info('originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
           
-          if show.get('thumb'    ):  Log.Info('[ ] thumb:                 {}'.format(PLEX_SERVER_NAME+show.get('thumb'    )))
-          if show.get('art'      ):  Log.Info('[ ] art:                   {}'.format(PLEX_SERVER_NAME+show.get('art'      )))
-          if show.get('banner'   ):  Log.Info('[ ] banner:                {}'.format(PLEX_SERVER_NAME+show.get('banner'   )))
-          if show.get('themes'   ):  Log.Info('[ ] themes:                {}'.format(PLEX_SERVER_NAME+show.get('themes'   )))
-          if show.get('ratingKey'):  Log.Info('[ ] ratingKey:             {}'.format(show.get('ratingKey'))); parentRatingKey = show.get('ratingKey')
-          if show.get('key'      ):  Log.Info('[ ] key:                   {}'.format(show.get('key'      ))); 
+          if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, 'poster.jpg'    ), 'poster')
+          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'background.jpg'), 'art'   )
+          if show.get('banner'   ):  SaveFile(PLEX_SERVER_NAME+show.get('banner'), os.path.join(dir, 'banner.jpg'    ), 'banner')
+          if show.get('theme'    ):  SaveFile(PLEX_SERVER_NAME+show.get('theme' ), os.path.join(dir, 'theme.mp3'     ), 'theme' )
+          if show.get('ratingKey'):  parentRatingKey = show.get('ratingKey')
+          #if show.get('key'      ):  Log.Info('[ ] key:                   {}'.format(show.get('key'      ))); 
           #Log.Info(XML.StringFromElement(show))
           found = True
           break
       else:  count += WINDOW_SIZE[agent_type];  continue
       break      
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-  Log.Info('found: {}'.format(found))
+  
   ###Series loop for posters, art, themes
   #XML: thumb="/library/metadata/25199/thumb/1398798243"
   #http://127.0.0.1:32400/library/metadata/25199/thumb/1398798243
@@ -170,13 +173,14 @@ def Search(results, media, lang, manual, agent_type):
       total  = PLEX_SEASONS_XML.get('totalSize')
       Log.Debug("PLEX_SEASONS_URL [{}-{} of {}]".format(count+1, count+int(PLEX_SEASONS_XML.get('size')) ,total))
       for show in PLEX_SEASONS_XML.iterchildren('Directory'):
-        #Log.Info(XML.StringFromElement(show))
-        if parentRatingKey == show.get('parentRatingKey'):
-          Log.Debug("title: '{}'".format(show.get('title'))) #if bExtraInfo:  media = XML.ElementFromURL('http://127.0.0.1:32400/library/metadata/'+mediaget('ratingKey')).xpath('//Video')[0]
+        if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
+          Log.Info(XML.StringFromElement(show))
+          Log.Debug("title: '{}'".format(show.get('title')))
+          if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
+          if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'season-specials-background.jpg' if show.get('title')=='Specials' else show.get('title')+'-background.jpg'), 'season_art'   )
       else:  count += WINDOW_SIZE[agent_type]
     except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
 
-  
   ### PLEX_COLLECT_URL - Collection loop for collection poster, summary ###
   # "http://IPOfPMS:32400/library/sections/X/all?collection=15213" <Collection id="15213" filter="collection=15213" tag="28 Days/Weeks Later"/>
   #  xxx.get('Collection')
