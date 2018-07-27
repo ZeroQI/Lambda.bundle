@@ -231,8 +231,8 @@ def Update(metadata, media, lang, force, agent_type):
             #if video.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
             #if video.get('key'      ):  Log.Info('[ ] key:                   {}'.format(video.get('key'      ))); 
             #if video.get('ratingKey'):  parentRatingKey = video.get('ratingKey')
-            if video.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+video.get('thumb' ), os.path.join(dir, filenoext+       '.jpg'), 'poster')
-            if video.get('art'      ):  SaveFile(PLEX_SERVER_NAME+video.get('art'   ), os.path.join(dir, filenoext+'-fanart.jpg'), 'art'   )
+            if Prefs['movies_poster'] and video.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+video.get('thumb' ), os.path.join(dir, filenoext+       '.jpg'), 'poster')
+            if Prefs['movies_fanart'] and video.get('art'      ):  SaveFile(PLEX_SERVER_NAME+video.get('art'   ), os.path.join(dir, filenoext+'-fanart.jpg'), 'art'   )
             for collection in video.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             found = True
             break
@@ -264,10 +264,10 @@ def Update(metadata, media, lang, force, agent_type):
             #if show.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
             #if show.get('key'      ):  Log.Info('[ ] key:                   {}'.format(show.get('key'      ))); 
             if show.get('ratingKey'):  parentRatingKey = show.get('ratingKey')
-            if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, 'poster.jpg'    ), 'poster')
-            if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'fanart.jpg'), 'art'   )
-            if show.get('banner'   ):  SaveFile(PLEX_SERVER_NAME+show.get('banner'), os.path.join(dir, 'banner.jpg'    ), 'banner')
-            if show.get('theme'    ):  SaveFile(PLEX_SERVER_NAME+show.get('theme' ), os.path.join(dir, 'theme.mp3'     ), 'theme' )
+            if Prefs['series_poster'] and show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, 'poster.jpg'), 'poster')
+            if Prefs['series_fanart'] and show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, 'fanart.jpg'), 'art'   )
+            if Prefs['series_banner'] and show.get('banner'   ):  SaveFile(PLEX_SERVER_NAME+show.get('banner'), os.path.join(dir, 'banner.jpg'), 'banner')
+            if Prefs['series_themes'] and show.get('theme'    ):  SaveFile(PLEX_SERVER_NAME+show.get('theme' ), os.path.join(dir, 'theme.mp3' ), 'theme' )
             for collection in show.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             #Log.Info(XML.StringFromElement(show))  #Un-comment for XML code displayed in logs
             found = True
@@ -287,7 +287,7 @@ def Update(metadata, media, lang, force, agent_type):
           if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
             #Log.Info(XML.StringFromElement(show))
             Log.Debug("title: '{}'".format(show.get('title')))
-            if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-poster.jpg'     if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'    ), 'season_poster')
+            if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-poster.jpg' if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'), 'season_poster')
             if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(dir, show.get('title') if os.path.exists(os.path.join(dir, show.get('title'))) else '', 'season-specials-fanart.jpg' if show.get('title')=='Specials' else show.get('title')+'-fanart.jpg'), 'season_art'   )
       except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
       count += WINDOW_SIZE[agent_type]
@@ -295,6 +295,31 @@ def Update(metadata, media, lang, force, agent_type):
     #  with io.open(os.path.join(posterDir, rowentry['Media ID'] + '.jpg'), 'wb') as handler:
     #    handler.write(HTTP.Request('http://127.0.0.1:32400/photo/:/transcode?width={}&height={}&minSize=1&url={}', String.Quote(rowentry['Poster url'])).content)
     #except Exception, e:  Log.Exception('Exception was %s' % str(e))
+
+  ### PLEX_COLLECT_URL - Collection loop for collection poster, summary ###
+  count = 0
+  while collections and (count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]):
+    try:
+      PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_COLLECT_URL.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
+      total  = PLEX_COLLECT_XML.get('totalSize')
+      Log.Debug("PLEX_COLLECT_URL size: [{}-{} of {}]".format(count+1, count+int(PLEX_COLLECT_XML.get('size')), total))
+      for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
+        if  directory.get('title') in collections:
+          #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
+          Log.Debug("[ ] Directory: '{}'".format( directory.get('title') ))
+          dirname = os.path.join(path, '_Collections', directory.get('title'))
+          #Log.Info('summary:               {}'.format(directory.get('summary')))
+          if (directory.get('art') or directory.get('thumb')) and not os.path.exists(dirname):  os.makedirs(dirname)
+          if Prefs['collection_poster'] and directory.get('thumb'):  SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(dirname, 'poster.jpg'), 'collection_poster')
+          if Prefs['collection_fanart'] and directory.get('art'  ):  SaveFile(PLEX_SERVER_NAME+directory.get('art'   ), os.path.join(dirname, 'fanart.jpg'), 'collection_fanart')
+    except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+    count += WINDOW_SIZE[agent_type]
+  
+  if agent_type=='artist':
+    pass
+
+  if agent_type=='album':
+    pass
 
 ### Agent declaration ##################################################################################################################################################
 class LMETVAgent(Agent.TV_Shows):  # 'com.plexapp.agents.none', 'com.plexapp.agents.opensubtitles'
@@ -335,6 +360,10 @@ PLEX_MOVIES_URL  = 'http://127.0.0.1:32400/library/sections/{}/all?type=1&X-Plex
 PLEX_TVSHOWS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=2&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_SEASONS_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=3&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_COLLECT_URL = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+#PLEX_ALBUM_URL   = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+#PLEX_ARTIST_URL  = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_SERVER_NAME = 'http://127.0.0.1:32400'
 WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'Album': 10}
 TIMEOUT          = 30
+#(/library/metadata/<ratingkey>/art/<artid>
+#/library/metadata/<ratingkey>).thumb
