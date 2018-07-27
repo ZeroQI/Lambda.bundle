@@ -1,33 +1,29 @@
 ## Local Media Export Plex Agent
 
-Allow to save locally:
-- Movies: Posters
-- TV_Shows: Series (Posters, art, banner, theme), Season (posters, art)
-- Collections (Poster, summary)
-- Music: Artists (poster), Albums (Cover)
+"Local Media Export" is a Plex double agent so to speak:
+- it takes metadata in Plex and save it locally, including collections
+- it allow to import back local metadata that isn't handled by 'Local Media Assets' (collections, NFO files)
 
 ### Settings ([X] on by default, [ ] off by default)
-
-- [ ] TV Shows themes
-- [X] TV Shows Poster
-- [ ] TV Shows Art
-- [X] TV Shows Season poster
-- [X] Collection Poster
-- [X] Collection Art
-- [X] Movie Poster
-- [ ] Movie Art
-- [X] Artist poster (if in its own folder only?)
-- [X] Album poster
-- [ ] NFO creation
-- [X] Import NFO/Creation (complement Local media Assets Agent)
+- [ ] Series Themes ('library_root/show/theme.mp3')
+- [X] Series Poster ('library_root/show/poster.jpg')
+- [ ] Series Fanart ('library_root/show/fanart.jpg')
+- [ ] Series Banner ('library_root/show/banner.jpg')
+- [X] Season Poster ('library_root/show(/Season 1)/season-specials-poster.jpg|Season 1-poster.jpg')
+- [ ] Season Fanart ('library_root/show(/Season 1)/season-specials-fanart.jpg|Season 1-fanart.jpg')
+- [ ] Ep.    Thumbs ('library_root/show(/Season 1)/xxx.jpg')
+- [X] Movies Poster ('library_root(/Movie)/Movie (year).jpg')
+- [ ] Movies Fanart ('library_root(/Movie)/Movie (year)-fanart.jpg')
+- [X] Collec Poster ('library_root/_Collections/collection_name/poster.jpg')
+- [ ] Collec Fanart ('library_root/_Collections/collection_name/fanart.jpg')
+- [X] Artist poster ('library_root/Artist/Album/fanart.jpg') (if in its own folder only?)
+- [X] Albums poster ('library_root(/Artist)/Album/fanart.jpg') 
+- [ ] NFO creation  (TBD)
+- [ ] Import NFO/Creation (complement Local media Assets Agent, collections)
 
 ### Installation
 
-No need for Plex token!
-
-Here is how to find the plug-in folder location:
-https://support.plex.tv/hc/en-us/articles/201106098-How-do-I-find-the-Plug-Ins-folder-
-
+Here is how to find the plug-in folder location: https://support.plex.tv/hc/en-us/articles/201106098-How-do-I-find-the-Plug-Ins-folder-
 Plex main folder location:
 
     * '%LOCALAPPDATA%\Plex Media Server\'                                        # Windows Vista/7/8
@@ -44,8 +40,7 @@ Plex main folder location:
     * '/raid0/data/module/Plex/sys/Plex Media Server/',                          # Thecus
     * '/raid0/data/PLEX_CONFIG/Plex Media Server/'                               # Thecus Plex community    
 
-Get the latest source zip in github release for hama https://github.com/ZeroQI/MLE.bundle > "Clone or download > Download Zip
-Folders Youtube-Agent.bundle-master.zip and copy inside folder Youtube-Agent.bundle-master in plug-ins folders but rename to "Youtube-Agent.bundle" (remove -master) :
+Get the latest source zip in github release for hama https://github.com/ZeroQI/MLE.bundle > "Clone or download > Download Zip (named MLE.bundle-master.zip) and copy the folder inside named MLE.bundle-master into plug-ins folders but rename it into "MLE.bundle" (in short remove '-master' from foldername) :
 
 ### Troubleshooting:
 
@@ -58,9 +53,8 @@ If you ask for something already answered in the readme, or post scanner issues 
 
 ### History
 
-Commissionned by rbeatse
- on the forum post: https://forums.plex.tv/t/looking-for-a-developer-to-make-an-app/274692
+Commissionned by rbeatse on the forum post: https://forums.plex.tv/t/looking-for-a-developer-to-make-an-app/274692
  
 ### Donation link:
 
-[PayPal.Me/ZeroQI](https://PayPal.Me/ZeroQI) or better [Donation link](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S8CUKCX4CWBBG&lc=IE&item_name=ZeroQI&item_number=Local%20Media%20Agent&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
+[PayPal.Me/ZeroQI](https://PayPal.Me/ZeroQI) or better [Donation link](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S8CUKCX4CWBBG&lc=IE&item_name=ZeroQI&item_number=Local%20Media%20Export%20Agent&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
