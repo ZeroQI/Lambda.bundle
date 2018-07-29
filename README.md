@@ -4,7 +4,7 @@
 - it takes metadata in Plex and save it locally, including collections
 - it allow to import back local metadata that isn't handled by 'Local Media Assets' (collections, NFO files)
 
-### Settings ([X] on by default, [ ] off by default)
+### Settings ([X] on by default, [ ] off by default, type: movie/show/album)
 - [ ] Series Themes ('library_root/show/theme.mp3')
 - [X] Series Poster ('library_root/show/poster.jpg')
 - [ ] Series Fanart ('library_root/show/fanart.jpg')
@@ -14,12 +14,12 @@
 - [ ] Ep.    Thumbs ('library_root/show(/Season 1)/xxx.jpg')
 - [X] Movies Poster ('library_root(/Movie)/Movie (year).jpg')
 - [ ] Movies Fanart ('library_root(/Movie)/Movie (year)-fanart.jpg')
-- [X] Collec Poster ('library_root/_Collections/collection_name/poster.jpg')
-- [ ] Collec Fanart ('library_root/_Collections/collection_name/fanart.jpg')
-- [X] Artist poster ('library_root/Artist/Album/fanart.jpg') (if in its own folder only?)
-- [X] Albums poster ('library_root(/Artist)/Album/fanart.jpg') 
-- [ ] NFO creation  (TBD)
-- [ ] Import NFO/Creation (complement Local media Assets Agent, collections)
+- [X] Collec Poster ('library_root/_Collections/collection_name-type/poster.jpg')
+- [ ] Collec Fanart ('library_root/_Collections/collection_name-type/fanart.jpg')
+- [ ] Artist Poster ('library_root/Artist/artist-poster.jpg')     (if in its own folder only?)
+- [ ] Artist Fanart ('library_root/Artist/artist-background.jpg') (if in its own folder only?)
+- [X] Albums poster ('library_root(/Artist)/Album/cover.jpg') 
+- [ ] Albums poster ('library_root(/Artist)/Album/background.jpg') 
 
 ### Installation
 
