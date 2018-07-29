@@ -1,4 +1,6 @@
 [
+  { "id":     "movies_poster",  "label": "Movie      poster",  "type": "bool",  "default":  "true" },
+  { "id":     "movies_fanart",  "label": "Movie      fanart",  "type": "bool",  "default": "false" },
   { "id":     "series_themes",  "label": "Series     Themes",  "type": "bool",  "default": "false" },
   { "id":     "series_poster",  "label": "Series     poster",  "type": "bool",  "default":  "true" },
   { "id":     "series_fanart",  "label": "Series     fanart",  "type": "bool",  "default": "false" },
@@ -6,10 +8,9 @@
   { "id":     "season_poster",  "label": "Season     poster",  "type": "bool",  "default":  "true" },
   { "id":     "season_fanart",  "label": "Season     fanart",  "type": "bool",  "default": "false" },
   { "id":    "episode_thumbs",  "label": "Episode    thumbs",  "type": "bool",  "default": "false" },
-  { "id":     "movies_poster",  "label": "Movie      poster",  "type": "bool",  "default":  "true" },
-  { "id":     "movies_fanart",  "label": "Movie      fanart",  "type": "bool",  "default": "false" },
+  { "id":     "artist_poster",  "label": "Artist     poster",  "type": "bool",  "default":  "true" },
+  { "id":      "album_poster",  "label": "Album      poster",  "type": "bool",  "default":  "true" },
   { "id": "collection_poster",  "label": "Collection poster",  "type": "bool",  "default":  "true" },
   { "id": "collection_fanart",  "label": "Collection fanart",  "type": "bool",  "default": "false" },
-  { "id":     "artist_poster",  "label": "Artist     poster",  "type": "bool",  "default":  "true" },
-  { "id":      "album_poster",  "label": "Album      poster",  "type": "bool",  "default":  "true" }
+  { "id": "collection_resume",  "label": "Collection resume",  "type": "bool",  "default": "false" }
 ]
