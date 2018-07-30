@@ -9,7 +9,9 @@
   { "id":     "season_fanart",  "label": "Season     fanart",  "type": "bool",  "default": "false" },
   { "id":    "episode_thumbs",  "label": "Episode    thumbs",  "type": "bool",  "default": "false" },
   { "id":     "artist_poster",  "label": "Artist     poster",  "type": "bool",  "default":  "true" },
+  { "id":     "artist_fanart",  "label": "Artist     fanart",  "type": "bool",  "default": "false" },
   { "id":      "album_poster",  "label": "Album      poster",  "type": "bool",  "default":  "true" },
+  { "id":      "album_fanart",  "label": "Album      fanart",  "type": "bool",  "default": "false" },
   { "id": "collection_poster",  "label": "Collection poster",  "type": "bool",  "default":  "true" },
   { "id": "collection_fanart",  "label": "Collection fanart",  "type": "bool",  "default": "false" },
   { "id": "collection_resume",  "label": "Collection resume",  "type": "bool",  "default": "false" }

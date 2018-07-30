@@ -58,34 +58,35 @@ def GetLibraryRootPath(dir):
   return library, root, path
 
 def GetMediaDir (media, agent_type):
-  if agent_type=='movie':  return os.path.dirname(media.items[0].parts[0].file)
+  if agent_type=='movie':  return os.path.split(media.items[0].parts[0].file)
   if agent_type=='show':
     dirs=[]
     for s in media.seasons if media else []: # TV_Show:
       for e in media.seasons[s].episodes:
-        folder = os.path.dirname(media.seasons[s].episodes[e].items[0].parts[0].file)
-        if folder not in dirs:  dirs.append(folder)
-    for folder in dirs:
-      if folder.startswith('Season'): return os.path.dirname(folder), ''
-    else:
-      if len(dirs)==1:  return folder
-      else:             return os.path.dirname(folder)
+        return os.path.split(media.seasons[s].episodes[e].items[0].parts[0].file)  #if folder.startswith('Season'): return os.path.split(folder), ''
   if agent_type=='album':
     for track in media.tracks:
       for item in media.tracks[track].items:
         for part in item.parts:
-          return os.path.dirname(part.file)
+          return os.path.split(part.file)
+     #media.tracks[track].items[0].parts[0].file
 
-def SaveFile(source, destination, field=''):
-  try:                    content = HTTP.Request(source).content  #response.headers['content-length']
-  except Exception as e:  Log.Info('Exception: "{}"'.format(e));  return
-  if os.path.exists(destination) and os.path.getsize(destination)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(destination)))
-  else:
-    if not os.path.exists(os.path.dirname(destination)):  os.makedirs(os.path.dirname(destination))
-    Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
-    try:                    Core.storage.save(destination, content)  #  with open(destination, 'wb') as file:  file.write(response.content)
-    except Exception as e:  Log.Info('Exception: "{}"'.format(e))
-
+def SaveFile(thumb, destination, field):
+  if thumb:
+    if Prefs[field]:
+      try:                    content = HTTP.Request(PLEX_SERVER_NAME+thumb).content  #response.headers['content-length']
+      except Exception as e:  Log.Info('Exception: "{}"'.format(e));  return
+      if os.path.exists(destination) and os.path.getsize(destination)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(destination)))
+      else:
+        if not os.path.exists(os.path.dirname(destination)):  os.makedirs(os.path.dirname(destination))
+        Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
+        try:                    Core.storage.save(destination, content)  #  with open(destination, 'wb') as file:  file.write(response.content)
+        except Exception as e:  Log.Info('Exception: "{}"'.format(e))
+    else:  Log.Info('[ ] {} present but not selected in agent settings'.format(field))
+  elif os.path.isfile(destination):  pass ###UploadImagesToPlex(poster_url_list, ratingKey, field)
+  else:  Log.Info('[ ] {} not present in Plex nor on disk'.format(field))
+  
+ 
 def UploadImagesToPlex(url_list, ratingKey, image_type):
   main_image = ''
   import requests
@@ -101,7 +102,7 @@ def UploadImagesToPlex(url_list, ratingKey, image_type):
     r = requests.put (PLEX_IMAGES % (ratingKey, image_type,       main_image), data=payload, headers=HEADERS)  # set the highest rated image as selected again
 
 def Start():
-  HTTP.CacheTime                  = CACHE_1MONTH
+  HTTP.CacheTime                  = 0
   HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
   HTTP.Headers['Accept-Language'] = 'en-us'
 
@@ -202,32 +203,28 @@ def Search(results, media, lang, manual, agent_type):
   
 def Update(metadata, media, lang, force, agent_type):
 
-  Log(''.ljust(157, '='))
+  folder, item  = GetMediaDir(media, agent_type)
+  
+  Log.Info(''.ljust(157, '='))
   Log.Info('Update(metadata, media="{}", lang="{}", force={}, agent_type={})'.format(media.title, lang, force, agent_type))
-  folder        = GetMediaDir(media, agent_type)
+  Log.Info('folder: {}, item: {}'.format(folder, item))
   collections = []
-  Log.Info(dir(media))  
-  ### PLEX_URL_LIBRARY - Plex libraries ###
-  PLEX_LIBRARY = {}
-  key, path = '', ''
+  
+  ### Plex libraries ###
+  key, path, library = '', '', ''
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_URL_LIBRARY, timeout=float(TIMEOUT))
-    Log.Info(XML.StringFromElement(PLEX_LIBRARY_XML))
+    #Log.Info(XML.StringFromElement(PLEX_LIBRARY_XML))
+    
+    Log.Info('PLEX_URL_LIBRARY')
     for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
-      #Log.Info('Library: [{:>2}] [{:<6}] {}'.format(directory.get('key'), directory.get('type'), directory.get('title')))
-      #Log.Info("agent_type: '{}', directory.get('type'): '{}'".format(agent_type, directory.get('type')))
-      if ('artist' if agent_type=='album' else agent_type) ==directory.get('type'):
-        for location in directory:
-          Log.Info("folder: '{}', location.get('path'): '{}'".format(folder, location.get('path')))
-          if folder and location.get('path') in folder:
-            Log.Info('[=] id: {:>2}, path: {}'.format(location.get("id"), location.get("path")))
-            PLEX_LIBRARY[location.get("path")] = directory.get("key")
-            key  = directory.get("key")
-            path = location.get("path")
-          else:                                    Log.Info('[ ] id: {:>2}, path: {}'.format(location.get("id"), location.get("path")))
+      for location in directory:
+        Log.Info('[{}] id: {:>2}, type: {:>6}, library: {:<24}, path: {}'.format('*' if location.get('path') in folder else ' ', directory.get("key"), directory.get('type'), directory.get('title'), location.get("path")))
+        if ('artist' if agent_type=='album' else agent_type)==directory.get('type') and location.get('path') in folder:
+          key, path, library = directory.get("key"), location.get("path"), directory.get('title')
   except Exception as e:  Log.Info("Exception: '{}'".format(e))
-  Log.Info('PLEX_LIBRARY: {}'.format(PLEX_LIBRARY))
-
+  Log.Info('')
+  
   ### Movies ###
   if agent_type=='movie':
     
@@ -238,9 +235,12 @@ def Update(metadata, media, lang, force, agent_type):
     parentRatingKey = ""
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
+        
+        # Paging PLEX_URL_MOVIES
         PLEX_MOVIES_XML = XML.ElementFromURL(PLEX_URL_MOVIES.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
         total = int(PLEX_MOVIES_XML.get('totalSize'))
         Log.Debug("PLEX_URL_MOVIES [{}-{} of {}]".format(count+1, count+int(PLEX_MOVIES_XML.get('size')) ,total))
+        
         for video in PLEX_MOVIES_XML.iterchildren('Video'):
           if media.title==video.get('title'):   
             #Log.Info(XML.StringFromElement(PLEX_MOVIES_XML))  #Un-comment for XML code displayed in logs
@@ -254,16 +254,16 @@ def Update(metadata, media, lang, force, agent_type):
             #if video.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
             #if video.get('key'      ):  Log.Info('[ ] key:                   {}'.format(video.get('key'      ))); 
             #if video.get('ratingKey'):  parentRatingKey = video.get('ratingKey')
-            if Prefs['movies_poster'] and video.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+video.get('thumb' ), os.path.join(folder, filenoext+       '.jpg'), 'poster')
-            if Prefs['movies_fanart'] and video.get('art'      ):  SaveFile(PLEX_SERVER_NAME+video.get('art'   ), os.path.join(folder, filenoext+'-fanart.jpg'), 'art'   )
+            SaveFile(video.get('thumb'), os.path.join(folder, filenoext+       '.jpg'), 'movies_poster')
+            SaveFile(video.get('art'  ), os.path.join(folder, filenoext+'-fanart.jpg'), 'movies_fanart')
             for collection in video.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             found = True
             break
         else:  count += WINDOW_SIZE[agent_type];  continue
         break      
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+      except Exception as e:  Log.Info("Exception: '{}'".format(e))     
 
-  ### TV Shows ###
+  ##### TV Shows ###
   if agent_type=='show':
 
     ### PLEX_URL_TVSHOWS - TV Shows###
@@ -285,21 +285,18 @@ def Update(metadata, media, lang, force, agent_type):
             #if show.get('duration'             ):  Log.Info('duration:              {}'.format(show.get('duration')))
             #if show.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
             #if show.get('key'      ):  Log.Info('[ ] key:                   {}'.format(show.get('key'      ))); 
-            Log.Info(PLEX_SERVER_NAME+show.get('thumb' ))
-            Log.Info(folder)
-            Log.Info(os.path.join(folder, 'poster.jpg'))
             if show.get('ratingKey'):  parentRatingKey = show.get('ratingKey')
-            if Prefs['series_poster'] and show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(folder, 'poster.jpg'), 'poster')
-            if Prefs['series_fanart'] and show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(folder, 'fanart.jpg'), 'art'   )
-            if Prefs['series_banner'] and show.get('banner'   ):  SaveFile(PLEX_SERVER_NAME+show.get('banner'), os.path.join(folder, 'banner.jpg'), 'banner')
-            if Prefs['series_themes'] and show.get('theme'    ):  SaveFile(PLEX_SERVER_NAME+show.get('theme' ), os.path.join(folder, 'theme.mp3' ), 'theme' )
+            SaveFile(show.get('thumb' ), os.path.join(folder, 'poster.jpg'), 'series_poster')
+            SaveFile(show.get('art'   ), os.path.join(folder, 'fanart.jpg'), 'series_fanart')
+            SaveFile(show.get('banner'), os.path.join(folder, 'banner.jpg'), 'series_banner')
+            SaveFile(show.get('theme' ), os.path.join(folder, 'theme.mp3' ), 'series_themes')
             for collection in show.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             #Log.Info(XML.StringFromElement(show))  #Un-comment for XML code displayed in logs
             found = True
             break
         else:  count += WINDOW_SIZE[agent_type];  continue
         break      
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+      except Exception as e:  Log.Info("Exception: '{}'".format(e))   
 
     ### PLEX_URL_SEASONS  - TV Shows seasons ###
     count, found = 0, False
@@ -312,18 +309,18 @@ def Update(metadata, media, lang, force, agent_type):
           if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
             #Log.Info(XML.StringFromElement(show))
             Log.Debug("title: '{}'".format(show.get('title')))
-            if show.get('thumb'    ):  SaveFile(PLEX_SERVER_NAME+show.get('thumb' ), os.path.join(folder, show.get('title') if os.path.exists(os.path.join(folder, show.get('title'))) else '', 'season-specials-poster.jpg' if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'), 'season_poster')
-            if show.get('art'      ):  SaveFile(PLEX_SERVER_NAME+show.get('art'   ), os.path.join(folder, show.get('title') if os.path.exists(os.path.join(folder, show.get('title'))) else '', 'season-specials-fanart.jpg' if show.get('title')=='Specials' else show.get('title')+'-fanart.jpg'), 'season_art'   )
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+            SaveFile(show.get('thumb' ), os.path.join(folder, show.get('title') if os.path.exists(os.path.join(folder, show.get('title'))) else '', 'season-specials-poster.jpg' if show.get('title')=='Specials' else show.get('title')+'-poster.jpg'), 'season_poster')
+            SaveFile(show.get('art'   ), os.path.join(folder, show.get('title') if os.path.exists(os.path.join(folder, show.get('title'))) else '', 'season-specials-fanart.jpg' if show.get('title')=='Specials' else show.get('title')+'-fanart.jpg'), 'season_fanart')
+      except Exception as e:  Log.Info("Exception: '{}'".format(e))   
       count += WINDOW_SIZE[agent_type]
+    
     ### transcoding picture
-    #  with io.open(os.path.join(posterDir, rowentry['Media ID'] + '.jpg'), 'wb') as handler:
-    #    handler.write(HTTP.Request('http://127.0.0.1:32400/photo/:/transcode?width={}&height={}&minSize=1&url={}', String.Quote(rowentry['Poster url'])).content)
+    #  Core.storage.save(os.path.join(posterDir, rowentry['Media ID'] + '.jpg'), HTTP.Request('http://127.0.0.1:32400/photo/:/transcode?width={}&height={}&minSize=1&url={}', String.Quote(rowentry['Poster url'])).content)
     #except Exception, e:  Log.Exception('Exception was %s' % str(e))
 
   if agent_type=='album':
 
-    '''### PLEX_URL_ARTISTS - MOVIES ###
+    '''### PLEX_URL_ARTISTS ###
     count, found    = 0, False
     parentRatingKey = ""
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
@@ -336,51 +333,39 @@ def Update(metadata, media, lang, force, agent_type):
         #for directory in PLEX_ARTIST_XML.iterchildren('Directory'):
         #  Log.Info("media.title: {}, media.parentTitle: {}, media.id: {}, directory.get('title'): {}".format(media.title, media.parentTitle, media.id, directory.get('title')))
         count += WINDOW_SIZE[agent_type]
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-    '''
-    ### PLEX_URL_ALBUM - MOVIES ###
+      except Exception as e:  Log.Info("Exception: '{}'".format(e))    
+    
+    ### ALBUM ###
     count, found    = 0, False
     parentRatingKey = ""
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
-        Log.Info(key)
         PLEX_ALBUM_XML = XML.ElementFromURL(PLEX_URL_ALBUM.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-        Log.Info(XML.StringFromElement(PLEX_ALBUM_XML))  #Un-comment for XML code displayed in logs
         total = int(PLEX_ALBUM_XML.get('totalSize'))
-        Log.Debug("PLEX_URL_MOVIES [{}-{} of {}]".format(count+1, count+int(PLEX_ALBUM_XML.get('size')) ,total))
+        Log.Debug("PLEX_URL_ALBUM [{}-{} of {}]".format(count+1, count+int(PLEX_ALBUM_XML.get('size')) ,total))
+        
+        #Log.Info(XML.StringFromElement(PLEX_ALBUM_XML))  #Un-comment for XML code displayed in logs
+        Log.Info("media.title: {}, media.parentTitle: {}, media.id: {}".format(media.title, media.parentTitle, media.id))
         for directory in PLEX_ALBUM_XML.iterchildren('Directory'):
-          Log.Info("media.title: {}, media.parentTitle: {}, media.id: {}, directory.get('title'): {}".format(media.title, media.parentTitle, media.id, directory.get('title')))
+          Log.Info("directory.get('title'): {}, directory.get('parentTitle'): {}".format(directory.get('title'), directory.get('parentTitle')))
           if media.title==directory.get('title'):   
-            Log.Info('title:                 {}'.format(directory.get('title')))
             if directory.get('summary'              ):  Log.Info('summary:               {}'.format(directory.get('summary')))
             if directory.get('parentTitle'          ):  Log.Info('parentTitle:           {}'.format(directory.get('parentTitle')))
             if directory.get('title'                ):  Log.Info('title:                 {}'.format(directory.get('title')))
-            if Prefs['album_poster' ] and directory.get('thumb'):                                        SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(folder, filenoext+       '.jpg'), 'poster')
-            if Prefs['artist_poster'] and directory.get('parentThumb') not in ('', directory.get('thumb')):  SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(folder, filenoext+       '.jpg'), 'poster')
+            if Prefs['album_poster' ] and directory.get('thumb'):
+              Log.Info('thumb:                 {}'.format(directory.get('thumb')))
+              SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(folder, 'cover.jpg'     ), 'poster')
+            if Prefs['artist_poster'] and directory.get('parentThumb') not in ('', directory.get('thumb')):  
+              Log.Info('parentThumb:                 {}'.format(directory.get('parentThumb')))
+              SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(folder, 'artist-poster.jpg'), 'poster')
             for collection in directory.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             found = True
             break
         else:  count += WINDOW_SIZE[agent_type];  continue
         break      
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-    
+      except Exception as e:  Log.Info("Exception: '{}'".format(e))
     '''
-    ### PLEX_URL_ARTISTS ###
-    count, found    = 0, False
-    parentRatingKey = ""
-    while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
-      try:
-        Log.Info(key)
-        PLEX_ARTIST_XML = XML.ElementFromURL(PLEX_URL_ARTISTS.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-        Log.Info(XML.StringFromElement(PLEX_ARTIST_XML))  #Un-comment for XML code displayed in logs
-        total = int(PLEX_ARTIST_XML.get('totalSize'))
-        Log.Debug("PLEX_URL_ALBUM [{}-{} of {}]".format(count+1, count+int(PLEX_ARTIST_XML.get('size')) ,total))
-        #for directory in PLEX_ARTIST_XML.iterchildren('Directory'):
-        #  Log.Info("media.title: {}, media.parentTitle: {}, media.id: {}, directory.get('title'): {}".format(media.title, media.parentTitle, media.id, directory.get('title')))
-        count += WINDOW_SIZE[agent_type]
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
-    '''
-    
+
     ### PLEX_URL_TRACK ###
     count, found    = 0, False
     parentRatingKey = ""
@@ -395,42 +380,58 @@ def Update(metadata, media, lang, force, agent_type):
         count += WINDOW_SIZE[agent_type]
         
         #Log.Info(XML.StringFromElement(PLEX_XML_TRACK))  #Un-comment for XML code displayed in logs
+        
         for track in PLEX_XML_TRACK.iterchildren('Track'):
-          Log.Info(XML.StringFromElement(track))
+          #Log.Info(XML.StringFromElement(track))
           for part in track.iterdescendants('Part'):
-            if os.path.dirname(part.get('file'))==folder:
+            if os.path.basename(part.get('file'))==item:
+              #Log.Info(XML.StringFromElement(track))
+              #Log.Info(XML.StringFromElement(part))
+          
+              Log.Info("[*] {}".format(item))              
               
-              # cover
-              if track.get('parentThumb'):
-                if Prefs[ 'album_poster']:                             SaveFile(PLEX_SERVER_NAME+track.get('parentThumb'), os.path.join(folder, 'cover.jpg'), 'album_poster')
-              elif os.path.isfile(os.path.join(folder, 'cover.jpg')):  UploadImagesToPlex(poster_url_list, ratingKey, 'cover')
+              # track
+              # SaveFile(track.get('thumb'), os.path.join(folder, 'track.jpg'), 'album_track_poster')
+              
+              if os.path.exists(os.path.join(path, item)):
+                Log.Info('[!] Skipping since on root folder')
+                break
               
               # artist poster
-              if track.get('grandParentThumb') and track.get('grandParentThumb')!=track.get('parentThumb'):
-                if Prefs['artist_poster']:  SaveFile(PLEX_SERVER_NAME+track.get('grandParentThumb'), os.path.join(folder, 'artist-poster.jpg'), 'artist_poster')
-              elif os.path.isfile(os.path.join(folder, 'artist-poster.jpg')):  UploadImagesToPlex(poster_url_list, ratingKey, 'artist')
+              if track.get('grandparentThumb') not in ('', track.get('parentThumb')):  SaveFile(track.get('grandparentThumb'), os.path.join(folder, 'artist-poster.jpg'), 'artist_poster')
+              else:  Log.Info('[ ] artist_poster not present or same as album')
+              
+              # Artist art
+              if track.get('grandparentArt') not in ('', track.get('art')):  SaveFile(track.get('grandparentThumb'), os.path.join(folder, 'artist-background.jpg'), 'artist_fanart')
+              else:  Log.Info('[ ] artist_fanart not present or same as album')
+              
+              #if os.path.relpath(folder, path).count(os.sep) <=1 and albums>=2:  break  # skip if more than 1 album in one folder depth
+              
+              # cover
+              SaveFile(track.get('parentThumb'), os.path.join(folder, 'cover.jpg'), 'album_poster')
+              
+              ## fanart
+              SaveFile(track.get('art'), os.path.join(folder, 'background.jpg'), 'album_fanart')
               
               break
-            Log.Info("[ ] part.get('file'): {}".format(os.path.basename(part.get('file'))))
-            #"artist-bio.nfo" or "Albumtitle-info.nfo" or "review.txt
           else:  continue
           count=total
           break
-        
-      except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+      except Exception as e:  Log.Info("Exception: '{}'".format(e))
     
-  ### PLEX_URL_COLLECT - Collection loop for collection poster, fanart, summary ###
+  ### Collection loop for collection poster, fanart, summary ###
   count = 0
   while collections and (count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]):
     try:
       
       # Paging load of PLEX_URL_COLLECT
       PLEX_COLLECT_XML = XML.ElementFromURL(PLEX_URL_COLLECT.format(key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-      Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
       total  = PLEX_COLLECT_XML.get('totalSize')
       Log.Debug("PLEX_URL_COLLECT size: [{}-{} of {}]".format(count+1, count+int(PLEX_COLLECT_XML.get('size')), total))
       count += WINDOW_SIZE[agent_type]
 
+      #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
+      
       # loop through 'Directory' XML tag
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         if  directory.get('title') in collections:
@@ -440,6 +441,7 @@ def Update(metadata, media, lang, force, agent_type):
           # poster
           if directory.get('thumb'):
             if Prefs['collection_poster']:  SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(dirname, 'poster.jpg'), 'collection_poster')
+            else:                           Log.Info('[ ] Present but not selected in agent settings')
           elif os.path.isfile(os.path.join(dirname, 'poster.jpg')):
             Log.Info('[@] collection poster on disk not in plex, loading')
             #UploadImagesToPlex(poster_url_list, ratingKey, 'poster')
@@ -447,20 +449,21 @@ def Update(metadata, media, lang, force, agent_type):
           # fanart
           if directory.get('art'):
             if Prefs['collection_fanart']:  SaveFile(PLEX_SERVER_NAME+directory.get('art'   ), os.path.join(dirname, 'fanart.jpg'), 'collection_fanart')
+            else:                           Log.Info('[ ] Present but not selected in agent settings')
           elif os.path.isfile(os.path.join(dirname, 'poster.jpg')):
             Log.Info('[@] collection fanart on disk not in plex, loading')
             #UploadImagesToPlex(fanart_url_list, ratingKey, 'art'   )
           
           # summary - directory.get('summary')="" despite being filled on web interface
           # directory.get('contentRating'), directory.get('childCount'), directory.get('maxYear'), directory.get('minYear')
-          #if True or Prefs['collection_resume']:  #Prefs['collection_resume'] gives 
-          #  Log.Info('summary:               {}'.format(directory.get('summary')))
-          #  if directory.get('summary'):  SaveFile(directory.get('summary'), os.path.join(dirname, 'summary.txt'), 'collection_summary')
-          #  elif os.path.isfile(os.path.join(dirname, 'summary.txt')): 
-          #    Log.Info('[@] collection summary on disk not in plex, loading')
-          #    r = requests.put('http://127.0.0.1:32400/library/sections/{}/all?type=18&id={}&summary.value={}'.format(section_id, col_id, directory.get('summary')), data=payload, headers=HEADERS)
+          if True or Prefs['collection_resume']:  #Prefs['collection_resume'] gives 
+            Log.Info('summary:               {}'.format(directory.get('summary')))
+            if directory.get('summary'):  SaveFile(directory.get('summary'), os.path.join(dirname, 'summary.txt'), 'collection_summary')
+            elif os.path.isfile(os.path.join(dirname, 'summary.txt')): 
+              Log.Info('[@] collection summary on disk not in plex, loading')
+              #r = requests.put('http://127.0.0.1:32400/library/sections/{}/all?type=18&id={}&summary.value={}'.format(section_id, col_id, directory.get('summary')), data=payload, headers=HEADERS)
             
-    except ValueError, Argument:  Log.Critical('Unknown error in {}'.format(Argument));  raise     
+    except Exception as e:  Log.Info("Exception: '{}'".format(e))
 
 ### Agent declaration ##################################################################################################################################################
 class LMETV(Agent.TV_Shows):  # 'com.plexapp.agents.none', 'com.plexapp.agents.opensubtitles'
