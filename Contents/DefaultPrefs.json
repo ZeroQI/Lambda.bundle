@@ -14,5 +14,6 @@
   { "id":      "album_fanart",  "label": "Album      fanart",  "type": "bool",  "default": "false" },
   { "id": "collection_poster",  "label": "Collection poster",  "type": "bool",  "default":  "true" },
   { "id": "collection_fanart",  "label": "Collection fanart",  "type": "bool",  "default": "false" },
-  { "id": "collection_resume",  "label": "Collection resume",  "type": "bool",  "default": "false" }
+  { "id": "collection_resume",  "label": "Collection resume",  "type": "bool",  "default": "false" },
+  { "id": "collection_folder",  "label": "Collection folder",  "type": "enum",  "default": "local", "values": ["local", "agent"] }
 ]
