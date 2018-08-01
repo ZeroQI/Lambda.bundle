@@ -24,38 +24,15 @@ PLEX_URL_ALBUM   = 'http://127.0.0.1:32400/library/sections/{}/all?type=9&X-Plex
 PLEX_URL_TRACK   = 'http://127.0.0.1:32400/library/sections/{}/all?type=10&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_URL_COLLECT = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 #PLEX_URL_COITEMS = 'http://127.0.0.1:32400/library/sections/{}/children&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_UPLOAD_TYPE = 'http://127.0.0.1:32400/library/metadata/{}/{}?url={}'
+PLEX_UPLOAD_TEXT = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&id={}&summary.value={}'
 PLEX_SERVER_NAME = 'http://127.0.0.1:32400'
 WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
 TIMEOUT          = 30
 
-###
-def natural_sort_key(s):
-  return [int(text) if text.isdigit() else text for text in re.split(re.compile('([0-9]+)'), str(s).lower())]  # list.sort(key=natural_sort_key) #sorted(list, key=natural_sort_key) - Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]
-
-### Get media root folder ###
-def GetLibraryRootPath(dir):
-  library, root, path = '', '', ''
-  for root in [os.sep.join(dir.split(os.sep)[0:x+2]) for x in range(0, dir.count(os.sep))]:
-    if root in PLEX_LIBRARY:
-      library = PLEX_LIBRARY[root]
-      path    = os.path.relpath(dir, root)
-      break
-  else:  #401 no right to list libraries (windows)
-    Log.Info('[!] Library access denied')
-    filename = os.path.join(AgentDataFolder, '_Logs', '_root_.scanner.log')
-    if os.path.isfile(filename):
-      Log.Info('[!] ASS root scanner file present: "{}"'.format(filename))
-      try:                    line = Core.storage.load(filename)  #with open(filename, 'r', -1, 'utf-8') as file:  line=file.read()
-      except Exception as e:  line='';  Log.Info('Exception: "{}"'.format(e))
-
-      for root in [os.sep.join(dir.split(os.sep)[0:x+2]) for x in range(dir.count(os.sep)-1, -1, -1)]:
-        if "root: '{}'".format(root) in line:
-          path = os.path.relpath(dir, root).rstrip('.')
-          break
-        Log.Info('[!] root not found: "{}"'.format(root))
-      else: path, root = '_unknown_folder', '';  
-    else:  Log.Info('[!] ASS root scanner file missing: "{}"'.format(filename))
-  return library, root, path
+### One liners ###
+def natural_sort_key(s   ):  return [int(text) if text.isdigit() else text for text in re.split(re.compile('([0-9]+)'), str(s).lower())]  # list.sort(key=natural_sort_key) #sorted(list, key=natural_sort_key) - Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]
+def file_extension  (file):  return file[1:] if file.count('.')==1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
 
 def GetMediaDir (media, agent_type):
   if agent_type=='movie':  return os.path.split(media.items[0].parts[0].file)
@@ -72,18 +49,18 @@ def GetMediaDir (media, agent_type):
      #media.tracks[track].items[0].parts[0].file
 
 def UploadImagesToPlex(url_list, ratingKey, image_type):
+  ''' https://github.com/defract/TMDB-Collection-Data-Retriever/blob/master/collection_updater.py line 211
+  '''
   main_image = ''
-  import requests
   for url in url_list or []:
     if main_image == '':
-      r = requests.get('http://127.0.0.1:32400/library/metadata/{}/{}?url={}'.format(ratingKey, image_type + 's', url), headers=HEADERS)
-      for child in ET.fromstring(r.text):
+      for child in HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type+'s', url), headers=HEADERS):
         if child.attrib['selected'] == '1':
-          url = child.attrib['key']
-          main_image = url[url.index('?url=')+5:]
+          selected_url   = child.attrib['key']
+          selected_image = selected_url[selected_url.index('?url=')+5:]
           break
-    r = requests.post(PLEX_IMAGES % (ratingKey, image_type + 's', url       ), data=payload, headers=HEADERS)
-    r = requests.put (PLEX_IMAGES % (ratingKey, image_type,       main_image), data=payload, headers=HEADERS)  # set the highest rated image as selected again
+    r = HTTP.Request(PLEX_IMAGES % (ratingKey, image_type + 's', url           ), headers=HEADERS) #method='POST'
+    r = HTTP.Request(PLEX_IMAGES % (ratingKey, image_type,       selected_image), headers=HEADERS, method='PUT')  # set the highest rated image as selected again
 
 def SaveFile(thumb, destination, field):
   ''' Save Metadata to file if different, or restore it to Plex if it doesn't exist anymore
@@ -91,10 +68,10 @@ def SaveFile(thumb, destination, field):
       destination:  path to export file
       field:        Prefs field name to check if export/importing
   '''
+  ext = file_extension(destination)
   if thumb:
     if Prefs[field]:
       try:
-        ext = file_extension(destination)
         if ext in ('jpg', 'mp3'):  content = HTTP.Request(PLEX_SERVER_NAME+thumb).content #response.headers['content-length']
         if ext=='txt':             content = thumb
         if ext=='xml':             content='' #content have list of fields?
@@ -115,18 +92,18 @@ def SaveFile(thumb, destination, field):
         try:                    Core.storage.save(destination, content)  #  with open(destination, 'wb') as file:  file.write(response.content)
         except Exception as e:  Log.Info('Exception: "{}"'.format(e))
     else:  Log.Info('[ ] {} present but not selected in agent settings'.format(field))
-  elif os.path.isfile(destination):  pass ###UploadImagesToPlex(poster_url_list, ratingKey, field)
+  elif os.path.isfile(destination):
+    if ext in ('jpg', 'mp3'):  UploadImagesToPlex(url, ratingKey, field)
+    if ext=='txt':             requests.put(PLEX_UPLOAD_TEXT.format(section_id, plex_col_id, thumb), headers=HEADERS)
+    if ext=='xml':             content='' #content have list of fields?
+    
   else:  Log.Info('[ ] {} not present in Plex nor on disk'.format(field))
-#r = requests.put('http://127.0.0.1:32400/library/sections/{}/all?type=18&id={}&summary.value={}'.format(section_id, col_id, directory.get('summary')), data=payload, headers=HEADERS)
 
 def xml_from_url_paging_load(URL, key, count, window):
   xml = XML.ElementFromURL(URL.format(key, count, window), timeout=float(TIMEOUT))
   total = xml.get('totalSize')
   Log.Info("# [{}-{} of {}] {}".format(count+1, count+int(xml.get('size')), total, URL))
   return xml, count+window, total
-
-### extension, as os.path.splitext ignore leading dots so ".plexignore" file is splitted into ".plexignore" and "" ###
-def file_extension(file):  return file[1:] if file.count('.')==1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
 
 def Start():
   HTTP.CacheTime                  = 0
