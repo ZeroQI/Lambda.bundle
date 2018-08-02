@@ -2,13 +2,64 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleIdentifier</key>
-	<string>com.plexapp.agents.lme</string>
-	<key>PlexFrameworkVersion</key>
-	<string>2</string>
-	<key>PlexPluginClass</key>
-	<string>Agent</string>
+
+  <!-- Version should always be set to 2 -->		
+  <key>PlexFrameworkVersion</key>
+  <string>2</string>
+
+  <!-- Identifies the agent folder -->		
+  <key>CFBundleIdentifier</key>
+  <string>com.plexapp.agents.lambda</string>
+
+  <!-- This one does nothing with a value of Always On, but using a value of "daemon" keeps the plugin alive in the background -->	
+  <key>PlexPluginMode</key>
+  <string>daemon</string>
+
+  <!-- List any client platforms supported in the plugin. -->	
+  <!-- Possible values are * for all platforms, MacOSX, Windows, Linux, Roku, Android, iOS, Safari, Firefox, Chrome, LGTV, Samsung, PlexConnect and Plex Home Theater -->
+  <key>PlexClientPlatforms</key>
+  <string>*</string>
+  
+  <!-- List any client platforms not supported in the plugin. -->	
+  <key>PlexClientPlatformExclusions</key>
+  <string></string>
+   
+  <!-- possible string values are the proper ISO two letter code for the country -->
+  <!-- A full list of values are available at http://en.wikipedia.org/wiki/ISO_3166-1_alpha-2 -->              
+  <key>PlexPluginRegions</key>
+  <array><string></string></array>
+	
+	<!-- DEBUG OPTIONAL KEYS -->
+  <!-- possible values are 0 and 1. Setting it to "1" rather than "0" turns on debug logging -->
+  <key>PlexPluginDebug</key>
+  <array><string>0</string></array>       
+  
+  <!-- THESE BELOW ARE FOR AGENTS ONLY -->    
+  
+  <!-- this allows channels to access some python methods which are otherwise blocked, as well as import external code libraries, and interact with the PMS HTTP API -->	
   <key>PlexPluginCodePolicy</key>
   <string>Elevated</string>
+  
+  <!-- This key is used to show that the plugin is an agent. possible values are agent -->	
+  <key>PlexPluginClass</key>
+  <string>agent</string>
+
+  <!-- This is used to send plugin log statements directly to stout when running PMS from the command line. Rarely used anymore-->
+  <key>PlexPluginConsoleLogging</key>
+	<string>0</string>
+       
+  <key>PlexAgentAttributionText</key>
+  <string>Local Assets-Metadata Backup Double Agent by ZeroQI&lt;br/&gt;&lt;br/&gt;
+  
+    Exports (enable/disable in agent settings, type=show|movie)&lt;br/&gt; 
+    - Movies     ('Movie (year).jpg', 'Movie (year)-fanart.jpg')&lt;br/&gt; 
+    - Series     ('theme.mp3', 'poster.jpg', 'fanart.jpg', 'banner.jpg')&lt;br/&gt; 
+    - Seasons    ('season-specials|Season x-poster.jpg', 'season-specials|Season x-fanart.jpg')&lt;br/&gt; 
+    - Episodes   ('xxx.jpg')&lt;br/&gt; 
+    - Artist     ('artist-poster.jpg', 'artist-background.jpg')&lt;br/&gt; 
+    - Album      ('cover.jpg', 'background.jpg')&lt;br/&gt;
+	  - Collection ('type-poster.jpg', 'type-fanart.jpg', 'type-lang-summary.txt')&lt;br/&gt;
+	</string>
+  
 </dict>
 </plist>

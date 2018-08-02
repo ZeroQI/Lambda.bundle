@@ -349,9 +349,9 @@ def Update(metadata, media, lang, force, agent_type):
           Log.Debug("[ ] Directory: '{}'".format( directory.get('title') ))
           
           dirname = os.path.join(library_path if Prefs['collection_folder']=='local' else AgentDataFolder, '_Collections', directory.get('title'))
-          SaveFile(directory.get('thumb'  ), os.path.join(dirname, agent_type+'-poster.jpg' ), 'collection_poster')
-          SaveFile(directory.get('art'    ), os.path.join(dirname, agent_type+'-fanart.jpg' ), 'collection_fanart')
-          SaveFile(directory.get('summary'), os.path.join(dirname, agent_type+'-summary.txt'), 'collection_resume', library_key, directory.get('ratingKey'))
+          SaveFile(directory.get('thumb'  ), os.path.join(dirname, agent_type         +'-poster.jpg' ), 'collection_poster')
+          SaveFile(directory.get('art'    ), os.path.join(dirname, agent_type         +'-fanart.jpg' ), 'collection_fanart')
+          SaveFile(directory.get('summary'), os.path.join(dirname, agent_type+'-'+lang+'-summary.txt'), 'collection_resume', library_key, directory.get('ratingKey'))
           #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
           
           #directory.get('ratingKey')
@@ -362,29 +362,17 @@ def Update(metadata, media, lang, force, agent_type):
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
 
 ### Agent declaration ##################################################################################################################################################
-class LMETV(Agent.TV_Shows):  # 'com.plexapp.agents.none', 'com.plexapp.agents.opensubtitles'
-  #contributes_to   = ['com.plexapp.agents.localmedia', 'com.plexapp.agents.hama']
-  languages        = [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
-  name             = 'LME'
-  primary_provider = False
-  fallback_agent   = False
+class LambdaTV(Agent.TV_Shows):
+  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English]
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'show')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'show')
 
-class LMEMovie(Agent.Movies):
-  #contributes_to   = ['com.plexapp.agents.localmedia', 'com.plexapp.agents.hama']
-  languages        = [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
-  name             = 'LME'
-  primary_provider = False
-  fallback_agent   = False
+class LambdaMovie(Agent.Movies):
+  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English]
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'movie')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'movie')
 
-class LMEAlbum(Agent.Album):
-  #contributes_to   = ['com.plexapp.agents.discogs', 'com.plexapp.agents.lastfm', 'com.plexapp.agents.plexmusic', 'com.plexapp.agents.none']
-  languages        = [Locale.Language.English]
-  name             = 'LME'
-  primary_provider = False
-  fallback_agent   = False
+class LambdaAlbum(Agent.Album):
+  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English]
   def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'album')
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'album')

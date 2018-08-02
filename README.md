@@ -1,8 +1,6 @@
-## Local Media Export Plex Agent
-
-"Local Media Export" is a Plex double agent so to speak:
-- it takes metadata in Plex and save it locally, including collections
-- it allow to import back local metadata that isn't handled by 'Local Media Assets' (collections, NFO files)
+##Local Assets-Metadata Double Agent
+- takes metadata in Plex and save it locally, including collections
+- allow to import back local metadata that isn't handled by 'Local Media Assets' (collections, NFO files)
 
 ### Settings ([X] on by default, [ ] off by default, type: movie/show/album)
 - [ ]  Series Themes ('library_root/show/theme.mp3')
@@ -14,15 +12,20 @@
 - [ ] Episode Thumbs ('library_root/show(/Season 1)/xxx.jpg')
 - [X]  Movies Poster ('library_root(/Movie)/Movie (year).jpg')
 - [ ]  Movies Fanart ('library_root(/Movie)/Movie (year)-fanart.jpg')
-- [X]  Collec Poster ('library_root/_Collections/collection_name/poster-library-lang.jpg')
-- [ ]  Collec Fanart ('library_root/_Collections/collection_name/fanart-library-lang.jpg')
-- [ ]  Collec Resume ('library_root/_Collections/collection_name/resume-Library-land.txt')
+- [X]  Collec Poster ('library_root/_Collections/collection_name/type-poster.jpg')
+- [ ]  Collec Fanart ('library_root/_Collections/collection_name/type-fanart.jpg')
+- [ ]  Collec Resume ('library_root/_Collections/collection_name/type-lang-summary.txt')
 - [ ]  Artist Poster ('library_root/Artist/artist-poster.jpg')     (if in its own folder only?)
 - [ ]  Artist Fanart ('library_root/Artist/artist-background.jpg') (if in its own folder only?)
 - [X]  Albums poster ('library_root(/Artist)/Album/cover.jpg') 
 - [ ]  Albums poster ('library_root(/Artist)/Album/background.jpg') 
 
 ### Installation
+
+WebTools install
+- Install WebTools https://forums.plex.tv/t/rel-webtools-unsupported-appstore/206843
+- Connect to http://127.0.0.1:33400/
+- paste https://github.com/ZeroQI/Lambda.bundle
 
 Here is how to find the plug-in folder location: https://support.plex.tv/hc/en-us/articles/201106098-How-do-I-find-the-Plug-Ins-folder-
 Plex main folder location:
