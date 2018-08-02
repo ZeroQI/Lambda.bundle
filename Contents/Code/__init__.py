@@ -5,7 +5,6 @@ import os                        # [path] abspath, join, dirname
 import re                        # split, compile
 import time                      # sleep
 import inspect                   # getfile, currentframe
-from   io           import open  #
 
 ### Variables ### (move last in file if calling some functions declared afterwards, order between functions deosn't matter)
 PlexRoot         = os.path.abspath(os.path.join(os.path.dirname(inspect.getfile(inspect.currentframe())), "..", "..", "..", ".."))
@@ -84,7 +83,7 @@ def SaveFile(thumb, destination, field, key="", ratingKey=""):
         except Exception as e:  Log.Info('Exception: "{}"'.format(e))
     else:  Log.Info('[ ] {} present but not selected in agent settings'.format(field))
   elif os.path.isfile(destination):
-    if ext in ('jpg', 'mp3'):  UploadImagesToPlex(url, ratingKey, field)
+    if ext in ('jpg', 'mp3'):  UploadImagesToPlex(destination, ratingKey, 'poster' if 'poster' in field else 'art' if 'fanart' in field else field)
     if ext=='txt':
       Log.Info("destination: '{}'".format(destination))
       r = HTTP.Request(PLEX_UPLOAD_TEXT.format(key, ratingKey, String.Quote(Core.storage.load(destination))), headers=HEADERS, method='PUT')
@@ -99,12 +98,16 @@ def UploadImagesToPlex(url_list, ratingKey, image_type):
       - image_type:  poster, fanart, season 
   '''
   for url in url_list if isinstance(url_list, list) else [url_list] if url_list else []:
-    for child in HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type+'s', url), headers=HEADERS) if main_image == '' else []:
+    r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type+'s', ''), headers=HEADERS)
+    Log.Info(r.content)
+    r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type + 's', String.Quote(url)), headers=HEADERS, method='POST')  # upload file  , data=Core.storage.load(url)
+    Log.Info(r.content)
+    for child in r.iter():
       if child.attrib['selected'] == '1':
         selected_url   = child.attrib['key']
-        selected_image = selected_url[selected_url.index('?url=')+5:]
-        r = HTTP.Request(PLEX_IMAGES % (ratingKey, image_type + 's', url           ), headers=HEADERS, method='POST')  # upload file
-        r = HTTP.Request(PLEX_IMAGES % (ratingKey, image_type,       selected_image), headers=HEADERS, method='PUT' )  # set    file as selected again
+        #selected_image = selected_url[selected_url.index('?url=')+5:]
+        #r = HTTP.Request(PLEX_IMAGES % (ratingKey, image_type + 's', url           ), headers=HEADERS, method='POST')  # upload file
+        #r = HTTP.Request(PLEX_IMAGES % (ratingKey, image_type,       selected_image), headers=HEADERS, method='PUT' )  # set    file as selected again
         Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
         break
     else: continue  #continue if no break occured
@@ -349,8 +352,8 @@ def Update(metadata, media, lang, force, agent_type):
           Log.Debug("[ ] Directory: '{}'".format( directory.get('title') ))
           
           dirname = os.path.join(library_path if Prefs['collection_folder']=='local' else AgentDataFolder, '_Collections', directory.get('title'))
-          SaveFile(directory.get('thumb'  ), os.path.join(dirname, agent_type         +'-poster.jpg' ), 'collection_poster')
-          SaveFile(directory.get('art'    ), os.path.join(dirname, agent_type         +'-fanart.jpg' ), 'collection_fanart')
+          SaveFile(directory.get('thumb'  ), os.path.join(dirname, agent_type         +'-poster.jpg' ), 'collection_poster', library_key, directory.get('ratingKey'))
+          SaveFile(directory.get('art'    ), os.path.join(dirname, agent_type         +'-fanart.jpg' ), 'collection_fanart', library_key, directory.get('ratingKey'))
           SaveFile(directory.get('summary'), os.path.join(dirname, agent_type+'-'+lang+'-summary.txt'), 'collection_resume', library_key, directory.get('ratingKey'))
           #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
           
