@@ -49,9 +49,18 @@ If you ask for something already answered in the readme, or post scanner issues 
 
 ### Possible improvement ([X] to be included in next version)
 
-- [ ] XBMC compatible nfo export
 - [ ] Import into plex exported Collection and meta if not present (through HTTP post, makes it a double agent)
+- [ ] XBMC compatible nfo export
+- [ ] mp3/m4a cover+LRC file downloader from hte media file headers
+- [ ] LRC Lyric file file downloader
 
+LRC
+- https://github.com/rikels/LyricsSearch/blob/master/lyrics.py Lyrics wikia & MiniLyrics
+- https://github.com/serantes/getlyrics/blob/master/getlyrics.py Lyrics Workshop, lrc, lrcShow, ttplayer, lyricwiki chartlyric+,  romaji convertor
+- https://gist.github.com/blueset/43172f5ecd32e75d9f9bc6b7e0177755 music.163.com
+- https://github.com/blueset/LyricDownloader/blob/master/LyricDownloader.py qianqian.com
+- https://github.com/doakey3/pylrc LRC to SRT
+      
 ### History
 
 Commissionned by rbeatse on the forum post: https://forums.plex.tv/t/looking-for-a-developer-to-make-an-app/274692
