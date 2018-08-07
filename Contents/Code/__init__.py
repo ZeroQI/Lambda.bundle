@@ -75,6 +75,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
   filename    = Prefs[field].split('¦')[1 if dynamic_name else 0] if 'season' in field and '¦' in Prefs[field] else Prefs[field]#dynamic name for seasons 1+ not specials  #Log.Info("filename: {}".format(filename))
   destination = os.path.join(path, filename.format(dynamic_name).replace('.ext', '.'+(file_extension(PLEX_SERVER_NAME+thumb) or 'jpg')))  #Log.Info("destination: {}".format(destination))
   ext         = file_extension(destination)  #Log.Info("ext: {}".format(ext))
+  Log.Info("filename: {}, destination: {}, ext: {}".format(filename, destination, ext))
   if thumb:
     if Prefs[field]!='Ignored':
       try:
@@ -117,11 +118,6 @@ def UploadImagesToPlex(url_list, ratingKey, image_type):
     r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type+'s', ''), headers=HEADERS)
     Log.Info(r.content)
     r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type + 's', 'default%3A%2F%2F'), headers=HEADERS, method='PUT')  # upload file  , data=Core.storage.load(url)
-    #http://127.0.0.1:32400/library/metadata/1326/poster?url=default%3A%2F%2F&X-Plex-Token=QgWck79hq45dz6XyRgyx
-    #http://127.0.0.1:32400/library/metadata/1326/arts?X-Plex-Product=Plex%20Web&X-Plex-Version=3.57.1&X-Plex-Client-Identifier=wc4l9kokt7t43tmj60xssq0g&X-Plex-Platform=Chrome&X-Plex-Platform-Version=67.0&X-Plex-Sync-Version=2&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1280x654%2C1280x720&X-Plex-Token=QgWck79hq45dz6XyRgyx&X-Plex-Language=en
-    #=> <MediaContainer size="2" identifier="com.plexapp.plugins.library" mediaTagPrefix="/system/bundle/media/flags/" mediaTagVersion="1532381716">…</MediaContainer
-    #http://127.0.0.1:32400/photo/:/transcode?url=%2Flibrary%2Fmetadata%2F1326%2Ffile%3Furl%3Dupload%253A%252F%252Fart%252Fa7251c05c548dc904f364f2fec2ae7083fdc959c%26X-Plex-Token%3DQgWck79hq45dz6XyRgyx&width=300&height=169&X-Plex-Token=QgWck79hq45dz6XyRgyx
-    #/library/metadata/1326/file?url=upload://art/a7251c05c548dc904f364f2fec2ae7083fdc959c&X-Plex-Token=QgWck79hq45dz6XyRgyx
     Log.Info(r.content)
     for child in r.iter():
       if child.attrib['selected'] == '1':
@@ -199,23 +195,16 @@ def Update(metadata, media, lang, force, agent_type):
     count = 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
-        
-        # Paging PLEX_URL_MOVIES
-        PLEX_MOVIES_XML = XML.ElementFromURL(PLEX_URL_MOVIES.format(library_key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-        total = int(PLEX_MOVIES_XML.get('totalSize'))
-        Log.Debug("PLEX_URL_MOVIES [{}-{} of {}]".format(count+1, count+int(PLEX_MOVIES_XML.get('size')) ,total))
-        
-        for video in PLEX_MOVIES_XML.iterchildren('Video'):
+        PLEX_XML_MOVIES, count, total = xml_from_url_paging_load(PLEX_URL_MOVIES, library_key, count, WINDOW_SIZE[agent_type])
+        for video in PLEX_XML_MOVIES.iterchildren('Video'):
           if media.title==video.get('title'):   
             Log.Info('title:                 {}'.format(video.get('title')))
-            if video.get('ratingKey'):  parentRatingKey = video.get('ratingKey')
+            
             filenoext = os.path.basename(os.path.splitext(media.items[0].parts[0].file)[0])
             SaveFile(video.get('thumb'), folder, 'movies_poster', dynamic_name=filenoext)
             SaveFile(video.get('art'  ), folder, 'movies_fanart', dynamic_name=filenoext)
-            for collection in video.iterchildren('Collection'):
-              Log.Info('collection:            {}'.format(collection.get('tag')))
-              collections.append(collection.get('tag'))
-            
+            for collection in video.iterchildren('Collection'):  collections.append(collection.get('tag'));  Log.Info('collection:            {}'.format(collection.get('tag')))
+            if video.get('ratingKey'):  parentRatingKey = video.get('ratingKey')
             #if video.get('summary'              ):  Log.Info('summary:               {}'.format(video.get('summary')))
             #if video.get('contentRating'        ):  Log.Info('contentRating:         {}'.format(video.get('contentRating')))
             #if video.get('studio'               ):  Log.Info('studio:                {}'.format(video.get('studio')))
@@ -224,9 +213,9 @@ def Update(metadata, media, lang, force, agent_type):
             #if video.get('duration'             ):  Log.Info('duration:              {}'.format(video.get('duration')))
             #if video.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
             #if video.get('key'      ):  Log.Info('[ ] key:                   {}'.format(video.get('key'      ))); 
-            #Log.Info(XML.StringFromElement(PLEX_MOVIES_XML))  #Un-comment for XML code displayed in logs
+            #Log.Info(XML.StringFromElement(PLEX_XML_MOVIES))  #Un-comment for XML code displayed in logs
             break
-        else:  count += WINDOW_SIZE[agent_type];  continue
+        else:  continue
         break      
       except Exception as e:  Log.Info("PLEX_URL_MOVIES - Exception: '{}'".format(e))     
 
