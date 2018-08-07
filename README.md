@@ -44,7 +44,7 @@ Plex main folder location:
     * '/raid0/data/module/Plex/sys/Plex Media Server/',                          # Thecus
     * '/raid0/data/PLEX_CONFIG/Plex Media Server/'                               # Thecus Plex community    
 
-Get the latest source zip in github release for hama https://github.com/ZeroQI/MLE.bundle > "Clone or download > Download Zip (named MLE.bundle-master.zip) and copy the folder inside named MLE.bundle-master into plug-ins folders but rename it into "MLE.bundle" (in short remove '-master' from foldername) :
+Get the latest source zip in github release for Lambda https://github.com/ZeroQI/Lambda.bundle > "Clone or download > Download Zip (named Lambda.bundle-master.zip) and copy the folder inside named Lambda.bundle-master into plug-ins folders but rename it into "Lambda.bundle" (in short remove '-master' from foldername) :
 
 ### Troubleshooting:
 
