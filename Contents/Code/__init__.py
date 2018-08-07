@@ -117,11 +117,6 @@ def UploadImagesToPlex(url_list, ratingKey, image_type):
     r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type+'s', ''), headers=HEADERS)
     Log.Info(r.content)
     r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type + 's', 'default%3A%2F%2F'), headers=HEADERS, method='PUT')  # upload file  , data=Core.storage.load(url)
-    #http://127.0.0.1:32400/library/metadata/1326/poster?url=default%3A%2F%2F&X-Plex-Token=QgWck79hq45dz6XyRgyx
-    #http://127.0.0.1:32400/library/metadata/1326/arts?X-Plex-Product=Plex%20Web&X-Plex-Version=3.57.1&X-Plex-Client-Identifier=wc4l9kokt7t43tmj60xssq0g&X-Plex-Platform=Chrome&X-Plex-Platform-Version=67.0&X-Plex-Sync-Version=2&X-Plex-Device=Windows&X-Plex-Device-Name=Chrome&X-Plex-Device-Screen-Resolution=1280x654%2C1280x720&X-Plex-Token=QgWck79hq45dz6XyRgyx&X-Plex-Language=en
-    #=> <MediaContainer size="2" identifier="com.plexapp.plugins.library" mediaTagPrefix="/system/bundle/media/flags/" mediaTagVersion="1532381716">…</MediaContainer
-    #http://127.0.0.1:32400/photo/:/transcode?url=%2Flibrary%2Fmetadata%2F1326%2Ffile%3Furl%3Dupload%253A%252F%252Fart%252Fa7251c05c548dc904f364f2fec2ae7083fdc959c%26X-Plex-Token%3DQgWck79hq45dz6XyRgyx&width=300&height=169&X-Plex-Token=QgWck79hq45dz6XyRgyx
-    #/library/metadata/1326/file?url=upload://art/a7251c05c548dc904f364f2fec2ae7083fdc959c&X-Plex-Token=QgWck79hq45dz6XyRgyx
     Log.Info(r.content)
     for child in r.iter():
       if child.attrib['selected'] == '1':
