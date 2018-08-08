@@ -1,40 +1,65 @@
 # -*- coding: utf-8 -*-
 
-### Imports ###
+# Imports
 import os                        # [path] abspath, join, dirname
 import re                        # split, compile
 import time                      # sleep
 import inspect                   # getfile, currentframe
+import time                      # Used to print start time to console
 
-### Variables ### (move last in file if calling some functions declared afterwards, order between functions deosn't matter)
-PlexRoot         = os.path.abspath(os.path.join(os.path.dirname(inspect.getfile(inspect.currentframe())), "..", "..", "..", ".."))
-AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.hama", "DataItems")
-PLEX_SERVER_NAME = 'http://127.0.0.1:32400' #Network.Address, Network.PublicAddress, Network.Hostname, port line 195 https://github.com/pkkid/python-plexapi/blob/master/plexapi/server.py
-PLEX_URL_LIBRARY = 'http://127.0.0.1:32400/library/sections'  
-PLEX_URL_MOVIES  = 'http://127.0.0.1:32400/library/sections/{}/all?type=1&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_TVSHOWS = 'http://127.0.0.1:32400/library/sections/{}/all?type=2&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_SEASONS = 'http://127.0.0.1:32400/library/sections/{}/all?type=3&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_EPISODE = 'http://127.0.0.1:32400/library/sections/{}/all?type=4&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_ARTISTS = 'http://127.0.0.1:32400/library/sections/{}/all?type=8&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_ALBUM   = 'http://127.0.0.1:32400/library/sections/{}/all?type=9&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_TRACK   = 'http://127.0.0.1:32400/library/sections/{}/all?type=10&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_COLLECT = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_COITEMS = 'http://127.0.0.1:32400/library/sections/{}/children&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_UPLOAD_TYPE = 'http://127.0.0.1:32400/library/metadata/{}/{}?url={}'
-PLEX_UPLOAD_TEXT = 'http://127.0.0.1:32400/library/sections/{}/all?type=18&id={}&summary.value={}'
-WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
-TIMEOUT          = 30
-HEADERS          = {}
+# Remove line below when releasing
+print 'Starting Lambda', time.strftime("%Y-%m-%d %H:%M")
 
-### One liners ###
-def natural_sort_key(s   ):  return [int(text) if text.isdigit() else text for text in re.split(re.compile('([0-9]+)'), str(s).lower())]  # list.sort(key=natural_sort_key) #sorted(list, key=natural_sort_key) - Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]
-def file_extension  (file):  return file[1:] if file.count('.')==1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
+# Variables
+PlexRoot = Core.app_support_path
+AgentDataFolder = os.path.join(
+    PlexRoot,
+    "Plug-in Support",
+    "Data",
+    "com.plexapp.agents.hama",
+    "DataItems")
+# Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
+PMS = 'http://127.0.0.1:32400'
+PMSLIB = PMS + '/Library'
+PMSSEC = PMSLIB + '/sections'
+PAGING = '&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_URL_MOVIES = PMSSEC + '/{}/all?type=1' + PAGING
+PLEX_URL_TVSHOWS = PMSSEC + '/{}/all?type=2' + PAGING
+PLEX_URL_SEASONS = PMSSEC + '/{}/all?type=3' + PAGING
+PLEX_URL_EPISODE = PMSSEC + '/{}/all?type=4' + PAGING
+PLEX_URL_ARTISTS = PMSSEC + '/{}/all?type=8' + PAGING
+PLEX_URL_ALBUM = PMSSEC + '/{}/all?type=9' + PAGING
+PLEX_URL_TRACK = PMSSEC + '/{}/all?type=10' + PAGING
+PLEX_URL_COLLECT = PMSSEC + '/{}/all?type=18' + PAGING
+PLEX_URL_COITEMS = PMSSEC + '/{}/children' + PAGING
+PLEX_UPLOAD_TYPE = PMSLIB + '/metadata/{}/{}?url={}'
+PLEX_UPLOAD_TEXT = PMSSEC + '/{}/all?type=18&id={}&summary.value={}'
+WINDOW_SIZE = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
+TIMEOUT = 30
+HEADERS = {}
+
+
+# One liners
+def natural_sort_key(s):
+    return [int(text)
+            if text.isdigit()
+            else text for text in re.split(
+                re.compile('([0-9]+)'),
+                str(s).lower())]
+    # list.sort(key=natural_sort_key)
+    # sorted(list, key=natural_sort_key)
+    #  - Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]
+
+
+def file_extension(file):
+    return file[1:] if file.count('.') == 1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
+
 
 def find_command(arg):
-  caller_lines = '' 
-  frame        = inspect.currentframe()
+  caller_lines = ''
+  frame = inspect.currentframe()
   try:
-    context      = inspect.getframeinfo(frame.f_back).code_context
+    context = inspect.getframeinfo(frame.f_back).code_context
     caller_lines = ''.join([line.strip() for line in context])
     m            = re.search(r'echo\s*\((.+?)\)$', caller_lines)
     if m:  caller_lines = m.group(1)
@@ -73,13 +98,13 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
   Log.Info("thumb: {}, path: {}, field:{}, Prefs[field]: {}, dynamic_name: {}".format(thumb, path, field, Prefs[field], dynamic_name))
   if not thumb or not path or not field or not Prefs[field]:  Log.Info('return'); return
   filename    = Prefs[field].split('¦')[1 if dynamic_name else 0] if 'season' in field and '¦' in Prefs[field] else Prefs[field]#dynamic name for seasons 1+ not specials  #Log.Info("filename: {}".format(filename))
-  destination = os.path.join(path, filename.format(dynamic_name).replace('.ext', '.'+(file_extension(PLEX_SERVER_NAME+thumb) or 'jpg')))  #Log.Info("destination: {}".format(destination))
+  destination = os.path.join(path, filename.format(dynamic_name).replace('.ext', '.'+(file_extension(PMS+thumb) or 'jpg')))  #Log.Info("destination: {}".format(destination))
   ext         = file_extension(destination)  #Log.Info("ext: {}".format(ext))
   Log.Info("filename: {}, destination: {}, ext: {}".format(filename, destination, ext))
   if thumb:
     if Prefs[field]!='Ignored':
       try:
-        if ext in ('jpg', 'mp3'):  content = HTTP.Request(PLEX_SERVER_NAME+thumb).content #response.headers['content-length']
+        if ext in ('jpg', 'mp3'):  content = HTTP.Request(PMS+thumb).content #response.headers['content-length']
         if ext=='txt':             content = thumb
         if ext=='xml':             content='' #content have list of fields?
           #load xml file in mem
@@ -178,14 +203,14 @@ def Update(metadata, media, lang, force, agent_type):
   
   ### Plex libraries ###
   try:
-    PLEX_LIBRARY_XML = XML.ElementFromURL(PLEX_URL_LIBRARY, timeout=float(TIMEOUT))  #Log.Info(XML.StringFromElement(PLEX_LIBRARY_XML))
-    Log.Info('PLEX_URL_LIBRARY')
+    PLEX_LIBRARY_XML = XML.ElementFromURL(PMSSEC, timeout=float(TIMEOUT))  #Log.Info(XML.StringFromElement(PLEX_LIBRARY_XML))
+    Log.Info('PMSSEC')
     for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
       for location in directory:
         Log.Info('[{}] id: {:>2}, type: {:>6}, library: {:<24}, path: {}'.format('*' if location.get('path') in folder else ' ', directory.get("key"), directory.get('type'), directory.get('title'), location.get("path")))
         if ('artist' if agent_type=='album' else agent_type)==directory.get('type') and location.get('path') in folder:
           library_key, library_path, library_name = directory.get("key"), location.get("path"), directory.get('title')
-  except Exception as e:  Log.Info("PLEX_URL_LIBRARY - Exception: '{}'".format(e))
+  except Exception as e:  Log.Info("PMSSEC - Exception: '{}'".format(e))
   Log.Info('')
   
   ### Movies ###
@@ -326,10 +351,10 @@ def Update(metadata, media, lang, force, agent_type):
             if directory.get('title'                ):  Log.Info('title:                 {}'.format(directory.get('title')))
             if Prefs['album_poster' ] and directory.get('thumb'):
               Log.Info('thumb:                 {}'.format(directory.get('thumb')))
-              SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(folder, 'cover.jpg'     ), 'poster')
+              SaveFile(PMS+directory.get('thumb' ), os.path.join(folder, 'cover.jpg'     ), 'poster')
             if Prefs['artist_poster'] and directory.get('parentThumb') not in ('', directory.get('thumb')):  
               Log.Info('parentThumb:                 {}'.format(directory.get('parentThumb')))
-              SaveFile(PLEX_SERVER_NAME+directory.get('thumb' ), os.path.join(folder, 'artist-poster.jpg'), 'poster')
+              SaveFile(PMS+directory.get('thumb' ), os.path.join(folder, 'artist-poster.jpg'), 'poster')
             for collection in directory.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             found = True
             break
