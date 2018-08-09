@@ -8,54 +8,47 @@ import inspect                   # getfile, currentframe
 import time                      # Used to print start time to console
 
 # Remove line below when releasing
-print 'Starting Lambda', time.strftime("%Y-%m-%d %H:%M")
+#print 'Starting Lambda', time.strftime("%Y-%m-%d %H:%M")
 
 # Variables
-PlexRoot = Core.app_support_path
-AgentDataFolder = os.path.join(
-    PlexRoot,
-    "Plug-in Support",
-    "Data",
-    "com.plexapp.agents.hama",
-    "DataItems")
-# Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
-PMS = 'http://127.0.0.1:32400'
-PMSLIB = PMS + '/Library'
-PMSSEC = PMSLIB + '/sections'
-PAGING = '&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_MOVIES = PMSSEC + '/{}/all?type=1' + PAGING
-PLEX_URL_TVSHOWS = PMSSEC + '/{}/all?type=2' + PAGING
-PLEX_URL_SEASONS = PMSSEC + '/{}/all?type=3' + PAGING
-PLEX_URL_EPISODE = PMSSEC + '/{}/all?type=4' + PAGING
-PLEX_URL_ARTISTS = PMSSEC + '/{}/all?type=8' + PAGING
-PLEX_URL_ALBUM = PMSSEC + '/{}/all?type=9' + PAGING
-PLEX_URL_TRACK = PMSSEC + '/{}/all?type=10' + PAGING
+PlexRoot         = Core.app_support_path
+AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.hama", "DataItems")
+PMS              = 'http://127.0.0.1:32400'  # Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
+PMSLIB           = PMS + '/library'
+PMSSEC           = PMSLIB + '/sections'
+PAGING           = '&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_URL_MOVIES  = PMSSEC + '/{}/all?type=1'  + PAGING
+PLEX_URL_TVSHOWS = PMSSEC + '/{}/all?type=2'  + PAGING
+PLEX_URL_SEASONS = PMSSEC + '/{}/all?type=3'  + PAGING
+PLEX_URL_EPISODE = PMSSEC + '/{}/all?type=4'  + PAGING
+PLEX_URL_ARTISTS = PMSSEC + '/{}/all?type=8'  + PAGING
+PLEX_URL_ALBUM   = PMSSEC + '/{}/all?type=9'  + PAGING
+PLEX_URL_TRACK   = PMSSEC + '/{}/all?type=10' + PAGING
 PLEX_URL_COLLECT = PMSSEC + '/{}/all?type=18' + PAGING
-PLEX_URL_COITEMS = PMSSEC + '/{}/children' + PAGING
+PLEX_URL_COITEMS = PMSSEC + '/{}/children'    + PAGING
 PLEX_UPLOAD_TYPE = PMSLIB + '/metadata/{}/{}?url={}'
 PLEX_UPLOAD_TEXT = PMSSEC + '/{}/all?type=18&id={}&summary.value={}'
-WINDOW_SIZE = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
-TIMEOUT = 30
-HEADERS = {}
+WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
+TIMEOUT          = 30
+HEADERS          = {}
 
-
-# One liners
+# Functions
 def natural_sort_key(s):
-    return [int(text)
-            if text.isdigit()
-            else text for text in re.split(
-                re.compile('([0-9]+)'),
-                str(s).lower())]
-    # list.sort(key=natural_sort_key)
-    # sorted(list, key=natural_sort_key)
-    #  - Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]
-
+  '''
+    Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]. Useage:
+    - list.sort(key=natural_sort_key)
+    - sorted(list, key=natural_sort_key)
+  '''
+  return [ int(text) if text.isdigit() else text for text in re.split( re.compile('([0-9]+)'), str(s).lower() ) ]
 
 def file_extension(file):
-    return file[1:] if file.count('.') == 1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
-
+  ''' return file extension, and if starting with single dot in filename, equals what's after the dot 
+  '''
+  return file[1:] if file.count('.') == 1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
 
 def find_command(arg):
+  ''' Display the line that was called for thar variable
+  '''
   caller_lines = ''
   frame = inspect.currentframe()
   try:
@@ -76,13 +69,13 @@ def GetMediaDir (media, agent_type):
     dirs=[]
     for s in media.seasons if media else []: # TV_Show:
       for e in media.seasons[s].episodes:
-        return os.path.split(media.seasons[s].episodes[e].items[0].parts[0].file)  #if folder.startswith('Season'): return os.path.split(folder), ''
+        return os.path.split(media.seasons[s].episodes[e].items[0].parts[0].file)
   if agent_type=='album':
     for track in media.tracks:
-      return os.path.split(media.tracks[track].items[0].parts[0].file)  #for item in media.tracks[track].items:  for part in item.parts:  return os.path.split(part.file)
+      return os.path.split(media.tracks[track].items[0].parts[0].file)
 
 def xml_from_url_paging_load(URL, key, count, window):
-  '''
+  ''' Load the URL xml page while handling total number of items and paging
   '''
   xml   = XML.ElementFromURL(URL.format(key, count, window), timeout=float(TIMEOUT))
   total = int(xml.get('totalSize') or 0)
@@ -175,9 +168,9 @@ def Start():
   HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
   HTTP.Headers['Accept-Language'] = 'en-us'
 
-### Download metadata using unique ID ###
 def Search(results, media, lang, manual, agent_type):
-
+  ''' Download metadata using unique ID
+  '''
   Log(''.ljust(157, '='))
   Log("search() - lang:'{}', manual='{}', agent_type='{}'".format(lang, manual, agent_type))
   if agent_type=='movie':   results.Append(MetadataSearchResult(id = 'null', name=media.title,  score = 100))
@@ -188,7 +181,8 @@ def Search(results, media, lang, manual, agent_type):
   #metadata = media.primary_metadata  #full metadata object from here with all data, otherwise in Update() metadata will be empty
   
 def Update(metadata, media, lang, force, agent_type):
-
+  '''
+  '''
   folder, item       = GetMediaDir(media, agent_type)
   collections        = []
   parentRatingKey    = ""
@@ -204,7 +198,7 @@ def Update(metadata, media, lang, force, agent_type):
   ### Plex libraries ###
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PMSSEC, timeout=float(TIMEOUT))  #Log.Info(XML.StringFromElement(PLEX_LIBRARY_XML))
-    Log.Info('PMSSEC')
+    Log.Info('Libraries: ')
     for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
       for location in directory:
         Log.Info('[{}] id: {:>2}, type: {:>6}, library: {:<24}, path: {}'.format('*' if location.get('path') in folder else ' ', directory.get("key"), directory.get('type'), directory.get('title'), location.get("path")))
@@ -248,7 +242,7 @@ def Update(metadata, media, lang, force, agent_type):
   if agent_type=='show':
 
     ### PLEX_URL_TVSHOWS - TV Shows###
-    count = 0
+    count, total = 0, 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
         PLEX_TVSHOWS_XML, count, total = xml_from_url_paging_load(PLEX_URL_TVSHOWS, library_key, count, WINDOW_SIZE[agent_type])
@@ -274,10 +268,10 @@ def Update(metadata, media, lang, force, agent_type):
             break
         else:  continue
         break      
-      except Exception as e:  Log.Info("PLEX_URL_TVSHOWS - Exception: '{}'".format(e));  count=total
+      except Exception as e:  Log.Info("PLEX_URL_TVSHOWS - Exception: '{}'".format(e));  count=total+1
 
     ### PLEX_URL_SEASONS  - TV Shows seasons ###
-    count = 0
+    count, total = 0, 0
     while count==0 or count<total and int(PLEX_XML_SEASONS.get('size')) == WINDOW_SIZE[agent_type]:
       try:
         PLEX_XML_SEASONS, count, total = xml_from_url_paging_load(PLEX_URL_SEASONS, library_key, count, WINDOW_SIZE[agent_type])
