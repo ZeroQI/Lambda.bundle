@@ -79,7 +79,7 @@ def xml_from_url_paging_load(URL, key, count, window):
   '''
   xml   = XML.ElementFromURL(URL.format(key, count, window), timeout=float(TIMEOUT))
   total = int(xml.get('totalSize') or 0)
-  Log.Info("# [{}-{} of {}] {}".format(count+1, count+int(xml.get('size') or 0), total, URL.format(key, count, window)))
+  Log.Info("# [{:>4}-{:>4} of {:>4}] {}".format(count+1, count+int(xml.get('size') or 0), total, URL.format(key, count, window)))
   return xml, count+window, total
 
 def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
@@ -192,9 +192,6 @@ def Update(metadata, media, lang, force, agent_type):
   Log.Info('Update(metadata, media="{}", lang="{}", force={}, agent_type={})'.format(media.title, lang, force, agent_type))
   Log.Info('folder: {}, item: {}'.format(folder, item))
   
-  Log.Info("{}: {}".format('movies_poster', Prefs['movies_poster']))
-  Log.Info("{}: {}".format('season_poster', Prefs['season_poster']))
-  
   ### Plex libraries ###
   try:
     PLEX_LIBRARY_XML = XML.ElementFromURL(PMSSEC, timeout=float(TIMEOUT))  #Log.Info(XML.StringFromElement(PLEX_LIBRARY_XML))
@@ -205,43 +202,44 @@ def Update(metadata, media, lang, force, agent_type):
         if ('artist' if agent_type=='album' else agent_type)==directory.get('type') and location.get('path') in folder:
           library_key, library_path, library_name = directory.get("key"), location.get("path"), directory.get('title')
   except Exception as e:  Log.Info("PMSSEC - Exception: '{}'".format(e))
+  Log.Info('library_key: {}, library_path: {}, library_name: {}'.format(library_key, library_path, library_name))
   Log.Info('')
   
-  ### Movies ###
+  ### Movies (PLEX_URL_MOVIES) ###
   if agent_type=='movie':
     
-    ### PLEX_URL_MOVIES - MOVIES ###
-    count = 0
+    count, total = 0, 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
         PLEX_XML_MOVIES, count, total = xml_from_url_paging_load(PLEX_URL_MOVIES, library_key, count, WINDOW_SIZE[agent_type])
         for video in PLEX_XML_MOVIES.iterchildren('Video'):
           if media.title==video.get('title'):   
             Log.Info('title:                 {}'.format(video.get('title')))
-            
             filenoext = os.path.basename(os.path.splitext(media.items[0].parts[0].file)[0])
             SaveFile(video.get('thumb'), folder, 'movies_poster', dynamic_name=filenoext)
             SaveFile(video.get('art'  ), folder, 'movies_fanart', dynamic_name=filenoext)
-            for collection in video.iterchildren('Collection'):  collections.append(collection.get('tag'));  Log.Info('collection:            {}'.format(collection.get('tag')))
-            if video.get('ratingKey'):  parentRatingKey = video.get('ratingKey')
-            #if video.get('summary'              ):  Log.Info('summary:               {}'.format(video.get('summary')))
-            #if video.get('contentRating'        ):  Log.Info('contentRating:         {}'.format(video.get('contentRating')))
-            #if video.get('studio'               ):  Log.Info('studio:                {}'.format(video.get('studio')))
-            #if video.get('rating'               ):  Log.Info('rating:                {}'.format(video.get('rating')))
-            #if video.get('year'                 ):  Log.Info('year:                  {}'.format(video.get('year')))
-            #if video.get('duration'             ):  Log.Info('duration:              {}'.format(video.get('duration')))
-            #if video.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
-            #if video.get('key'      ):  Log.Info('[ ] key:                   {}'.format(video.get('key'      ))); 
+            for collection in video.iterchildren('Collection'):
+              collections.append(collection.get('tag'))
+              Log.Info('collection:            {}'.format(collection.get('tag')))
+            if video.get('ratingKey'            ):  Log.Info('[ ] ratingKey:             {}'.format(video.get('ratingKey'            )));  parentRatingKey = video.get('ratingKey')
+            if video.get('summary'              ):  Log.Info('[ ] summary:               {}'.format(video.get('summary'              )))
+            if video.get('contentRating'        ):  Log.Info('[ ] contentRating:         {}'.format(video.get('contentRating'        )))
+            if video.get('studio'               ):  Log.Info('[ ] studio:                {}'.format(video.get('studio'               )))
+            if video.get('rating'               ):  Log.Info('[ ] rating:                {}'.format(video.get('rating'               )))
+            if video.get('year'                 ):  Log.Info('[ ] year:                  {}'.format(video.get('year'                 )))
+            if video.get('duration'             ):  Log.Info('[ ] duration:              {}'.format(video.get('duration'             )))
+            if video.get('originallyAvailableAt'):  Log.Info('[ ] originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
+            if video.get('key'                  ):  Log.Info('[ ] key:                   {}'.format(video.get('key'                  )))
             #Log.Info(XML.StringFromElement(PLEX_XML_MOVIES))  #Un-comment for XML code displayed in logs
             break
         else:  continue
         break      
-      except Exception as e:  Log.Info("PLEX_URL_MOVIES - Exception: '{}'".format(e))     
-
-  ##### TV Shows ###
+      except Exception as e:  Log.Info("PLEX_URL_MOVIES - Exception: '{}'".format(e)); count+=1
+    Log.Info('')
+  
+  ##### TV Shows (PLEX_URL_TVSHOWS) ###
   if agent_type=='show':
 
-    ### PLEX_URL_TVSHOWS - TV Shows###
     count, total = 0, 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
@@ -254,22 +252,24 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(show.get('art'   ), folder, 'series_fanart')
             SaveFile(show.get('banner'), folder, 'series_banner')
             SaveFile(show.get('theme' ), folder, 'series_themes')
-            for collection in show.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
-            
-            #if show.get('summary'              ):  Log.Info('summary:               {}'.format(show.get('summary')))
-            #if show.get('contentRating'        ):  Log.Info('contentRating:         {}'.format(show.get('contentRating')))
-            #if show.get('studio'               ):  Log.Info('studio:                {}'.format(show.get('studio')))
-            #if show.get('rating'               ):  Log.Info('rating:                {}'.format(show.get('rating')))
-            #if show.get('year'                 ):  Log.Info('year:                  {}'.format(show.get('year')))
-            #if show.get('duration'             ):  Log.Info('duration:              {}'.format(show.get('duration')))
-            #if show.get('originallyAvailableAt'):  Log.Info('originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
-            #if show.get('key'                  ):  Log.Info('[ ] key:               {}'.format(show.get('key')))
+            for collection in show.iterchildren('Collection'):
+              Log.Info('collection:            {}'.format(collection.get('tag')))
+              collections.append(collection.get('tag'))
+            if show.get('summary'              ):  Log.Info('[ ] summary:               {}'.format(show.get('summary'              )))
+            if show.get('contentRating'        ):  Log.Info('[ ] contentRating:         {}'.format(show.get('contentRating'        )))
+            if show.get('studio'               ):  Log.Info('[ ] studio:                {}'.format(show.get('studio'               )))
+            if show.get('rating'               ):  Log.Info('[ ] rating:                {}'.format(show.get('rating'               )))
+            if show.get('year'                 ):  Log.Info('[ ] year:                  {}'.format(show.get('year'                 )))
+            if show.get('duration'             ):  Log.Info('[ ] duration:              {}'.format(show.get('duration'             )))
+            if show.get('originallyAvailableAt'):  Log.Info('[ ] originallyAvailableAt: {}'.format(show.get('originallyAvailableAt')))
+            if show.get('key'                  ):  Log.Info('[ ] key:                   {}'.format(show.get('key'                  )))
             #Log.Info(XML.StringFromElement(show))  #Un-comment for XML code displayed in logs
             break
         else:  continue
         break      
       except Exception as e:  Log.Info("PLEX_URL_TVSHOWS - Exception: '{}'".format(e));  count=total+1
-
+    Log.Info('')
+  
     ### PLEX_URL_SEASONS  - TV Shows seasons ###
     count, total = 0, 0
     while count==0 or count<total and int(PLEX_XML_SEASONS.get('size')) == WINDOW_SIZE[agent_type]:
@@ -278,39 +278,53 @@ def Update(metadata, media, lang, force, agent_type):
         for show in PLEX_XML_SEASONS.iterchildren('Directory') or []:
           if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
             #Log.Info(XML.StringFromElement(show))
-            Log.Debug("title: '{}'".format(show.get('title')))
+            if show.get('title'):  Log.Info('[ ] title:               {}'.format(show.get('title')))
             SaveFile(show.get('thumb' ), folder, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX
             SaveFile(show.get('art'   ), folder, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX)
       except Exception as e:  Log.Info("PLEX_URL_SEASONS - Exception: '{}'".format(e));  raise
       
+    ### Episode thumbs list
     if Prefs['episode_thumbs']!='Ignore':
-      ### Episode thumbs list
       episodes=[]
       for season in sorted(media.seasons, key=natural_sort_key):
         for episode in sorted(media.seasons[season].episodes, key=natural_sort_key):
-          episodes.append(os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file))
-      
+          episodes.append(media.seasons[season].episodes[episode].items[0].parts[0].file)
+      Log.Info('episodes: {}'.format(episodes[:1]))
+      Log.Info('')
+  
       ### PLEX_URL_EPISODE - TV Shows###
       count, total = 0, 0
       while count==0 or count<total and episodes:
         try:
           PLEX_XML_EPISODE, count, total = xml_from_url_paging_load(PLEX_URL_EPISODE, library_key, count, WINDOW_SIZE[agent_type])
-          for episode in PLEX_XML_EPISODE.iterchildren('Video'):
-            for part in episode.iterdescendants('Part'):
+          for video in PLEX_XML_EPISODE.iterchildren('Video'):
+            for part in video.iterdescendants('Part'):
               if part.get('file') in episodes:
+                Log.Info('[{}]'.format(video.get('type')))
+                Log.Info('[ ] grandparent Key / RatingKey / Thumb / Art / Title: {}, {}, {:<39}, {:<39}, {}'.format(video.get('grandparentKey'), video.get('grandparentRatingKey'), video.get('grandparentThumb'), video.get('grandparentArt'), video.get('grandparentTitle')))
+                Log.Info('[ ]      parent Key / RatingKey / Thumb / Art / Title: {}, {}, {:<39}, {:<39}, {}'.format(video.get(     'parentKey'), video.get(     'parentRatingKey'), video.get(     'parentThumb'), video.get(     'parentArt'), video.get(     'parentTitle')))
+                Log.Info('[ ]             key / ratingKey / thumb / art / title: {}, {}, {:<39}, {:<39}. {}'.format(video.get(           'key'), video.get(           'ratingKey'), video.get(           'thumb'), video.get(           'art'), video.get(           'title')))
+                Log.Info('[ ] summary:               {}'.format(video.get('summary'              )))
+                Log.Info('[ ] file:                  {}'.format(video.get('file'                 )))
+                Log.Info('[ ] year:                  {}'.format(video.get('year'                 )))
+                Log.Info('[ ] originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
+                Log.Info('[ ]               addedAt: {}'.format(video.get(              'addedAt')))
+                Log.Info('[ ]             updatedAt: {}'.format(video.get(            'updatedAt')))
+                #index, parentIndex
+                Log.Info('[ ] id:                    {}'.format( part.get('id'     )))
+                Log.Info('[ ] key:                   {}'.format( part.get('key'    )))
+                Log.Info('[ ] file:                  {}'.format( part.get('file'   )))
                 episodes.remove(part.get('file'))
                 folder, filename = os.path.split(part.get('file'))
-                SaveFile(episode.get('thumb'), folder, 'episode_thumbs', dynamic_name=os.path.splitext(filename)[0])
+                SaveFile(video.get('thumb'), folder, 'episode_thumbs', dynamic_name=os.path.splitext(filename)[0])
+                for director in video.iterdescendants('Director'):
+                  Log.Info(  '[ ] director: {}'.format(director.get('tag')))
+                for writer   in video.iterdescendants('Director'):
+                  Log.Info(  '[ ] writer:   {}'.format(director.get('tag')))
+            
         except Exception as e:  Log.Info("PLEX_URL_EPISODE - Exception: '{}', cound: {}, total: {}".format(e, count, total));  
-    
-    '''
-    <Video ratingKey="7938" key="/library/metadata/7938" parentRatingKey="7937" grandparentRatingKey="7936" type="episode" title="The Beginning of a Dream" titleSort="Beginning of a Dream" grandparentKey="/library/metadata/7936" parentKey="/library/metadata/7937" grandparentTitle="Aikatsu Stars!" parentTitle="Season 1" summary="Yume Nijino is a first year middle school student who attends the idol school, Four Star Academy as a freshman student. Within the school is an idol group consisting of four idols known as &quot;S4&quot;, and within that group is Hime Shiratori who Yume yearns to be partners with. To start this new life, there will be a show on the main stage for all freshman students to compete in. As this is the first stage, Yume is to show herself on that stage!?" index="1" parentIndex="1" year="2016" thumb="/library/metadata/7938/thumb/1533373216" art="/library/metadata/7936/art/1532936993" grandparentThumb="/library/metadata/7936/thumb/1532936993" grandparentArt="/library/metadata/7936/art/1532936993" originallyAvailableAt="2016-04-07" addedAt="1531551485" updatedAt="1533373216">
-    <Media id="7506">
-    <Part id="7541" key="/library/parts/7541/1531551468/file.mp4" file="C:\Users\benja\Videos\_temp2\Aikatsu Stars! [anidb-11934]\01.mp4"/>
-    </Media>
-    <Director tag="Satou Teruo"/>
-    <Writer tag="BN Pictures"/>
-    '''
+    Log.Info('')
+  
   if agent_type=='album':
 
     '''### PLEX_URL_ARTISTS ###
@@ -420,11 +434,12 @@ def Update(metadata, media, lang, force, agent_type):
           SaveFile(directory.get('art'    ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(directory.get('summary'), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
           #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
-          
           #directory.get('ratingKey')
-          #contentRating
-          #index
-          #addedAt="1522877260" updatedAt="1522877268" childCount="0"
+          #directory.get('contentRating')
+          #directory.get('index')
+          #directory.get('addedAt')
+          #directory.get('updatedAt')
+          #directory.get('childCount')
           
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
 
