@@ -6,13 +6,11 @@ import re                        # split, compile
 import time                      # sleep
 import inspect                   # getfile, currentframe
 import time                      # Used to print start time to console
-
-# Remove line below when releasing
-#print 'Starting Lambda', time.strftime("%Y-%m-%d %H:%M")
+import hashlib                   # md5
 
 # Variables
 PlexRoot         = Core.app_support_path
-AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.hama", "DataItems")
+AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.lambda", "DataItems")
 PMS              = 'http://127.0.0.1:32400'  # Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
 PMSLIB           = PMS + '/library'
 PMSSEC           = PMSLIB + '/sections'
@@ -32,6 +30,17 @@ WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
 TIMEOUT          = 30
 HEADERS          = {}
 
+FieldsMovies   = ('original_title', 'title', 'title_sort', 'roles', 'studio', 'year', 'originally_available_at', 'tagline', 'summary', 'content_rating', 'content_rating_age',
+                     'producers', 'directors', 'writers', 'countries', 'posters', 'art', 'themes', 'rating', 'quotes', 'trivia')
+FieldsSeries   = ('title', 'title_sort', 'originally_available_at', 'duration','rating',  'reviews', 'collections', 'genres', 'tags' , 'summary', 'extras', 'countries', 'rating_count',
+                     'content_rating', 'studio', 'countries', 'posters', 'banners', 'art', 'themes', 'roles', 'original_title', 
+                     'rating_image', 'audience_rating', 'audience_rating_image')  # Not in Framework guide 2.1.1, in https://github.com/plexinc-agents/TheMovieDb.bundle/blob/master/Contents/Code/__init__.py
+FieldsSeasons  = ('summary','posters', 'art')  #'summary', 
+FieldsEpisodes = ('title', 'summary', 'originally_available_at', 'writers', 'directors', 'producers', 'guest_stars', 'rating', 'thumbs', 'duration', 'content_rating', 'content_rating_age', 'absolute_index') #'titleSort
+FieldsArtists  = {}
+FieldsAlbums   = {}
+FieldsTracks   = {}
+
 # Functions
 def natural_sort_key(s):
   '''
@@ -46,19 +55,6 @@ def file_extension(file):
   '''
   return file[1:] if file.count('.') == 1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
 
-def find_command(arg):
-  ''' Display the line that was called for thar variable
-  '''
-  caller_lines = ''
-  frame = inspect.currentframe()
-  try:
-    context = inspect.getframeinfo(frame.f_back).code_context
-    caller_lines = ''.join([line.strip() for line in context])
-    m            = re.search(r'echo\s*\((.+?)\)$', caller_lines)
-    if m:  caller_lines = m.group(1)
-  finally:   del frame
-  return caller_lines
-  
 def GetMediaDir (media, agent_type):
   ''' Returns folder and file touple for media
       - media:       media received by update()
@@ -99,8 +95,8 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
       try:
         if ext in ('jpg', 'mp3'):  content = HTTP.Request(PMS+thumb).content #response.headers['content-length']
         if ext=='txt':             content = thumb
-        if ext=='xml':             content='' #content have list of fields?
-          #load xml file in mem
+        if ext=='xml':
+          content='' #content have list of fields?
           #if meta in plex:  update mem xml  field
           #else if in mem:   update metadata field
           #save file if different
@@ -108,7 +104,49 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
           #  'minYear'      : directory.get('minYear'      )
           #  'maxYear'      : directory.get('maxYear'      )
           #}
-
+          '''
+            file         = os.path.join(path, agent_type, '.nfo')
+            nfo, changed = load_nfo_to_dict(file)  #no need to empty fill, loop will do
+            for field in FieldsMovies:
+              plex_meta = getattr(metadata, field)
+              nfo_meta  = Dict   (nfo,      field)
+              if plex_meta:
+                if plex_meta==nfo_meta:  Log.Ingo('[=] field: xxxx identical')
+                else:                    SaveDict(plex_meta, nfo, field);  changed = 1
+              elif nfo_meta:             UpdateMetaField(metadata, metadata, MetaSources[language_source], FieldListMovies if movie else FieldListSeries, 'title', language_source, movie, source_list) 
+              elif not present:          SaveDict(None, nfo, field)
+            if not present or changed nfo in mem: Write_nfo_to_disk(file, nfo)
+          
+            for field in FieldsSeries:
+              pass
+            for season in sorted(media.seasons, key=natural_sort_key):
+              for field in FieldsSeasons:
+                pass  
+              for episode in sorted(media.seasons[season].episodes, key=natural_sort_key):
+                #episodes.append(media.seasons[season].episodes[episode].items[0].parts[0].file)
+              
+                for field in FieldsEpisodes:
+            
+          try:                 import xml.etree.cElementTree as ET
+          except ImportError:  import xml.etree.ElementTree  as ET
+          root   = etree.Element("root")                         #b'<root>'
+          root   = etree.Element("root", interesting="totally")  #b'<root interesting="totally"/>'
+          root.insert(0, etree.Element("child0"))
+          root.append( etree.Element("child1") )
+          child2 = etree.SubElement(root, "child2", attrib={}, **extra)
+          start  = root[:1]
+          end    = root[-1:]
+          root.attrib["hello"] = "Guten Tag"
+          root.attrib.get("no-such-attribute")
+          root.text = "TEXT"
+          root.tail = "TEXT"
+          
+          Core.storage.copy
+          Core.storage.join_path
+          Core.storage.file_exists
+          Core.storage.remove_tree(Core.storage.join_path(Core.plugin_support_path, "Data", identifier)) 
+          Core.storage.rename(Core.storage.join_path(self.system.bundleservice.plugins_path, bundle.name), inactive_path) 
+          '''
       except Exception as e:  Log.Info('Exception: "{}"'.format(e));  return
       if os.path.exists(destination) and os.path.getsize(destination)==len(content):  Log.Info('[=] {}: {}'.format(field, os.path.basename(destination)))
       else:
@@ -123,7 +161,8 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
       Log.Info("destination: '{}'".format(destination))
       r = HTTP.Request(PLEX_UPLOAD_TEXT.format(key, ratingKey, String.Quote(Core.storage.load(destination))), headers=HEADERS, method='PUT')
       Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
-    if ext=='xml':             content='' #content have list of fields?
+    if ext in ('xml', nfo):  #update nfo in mem
+      content='' #content have list of fields?
   else:  Log.Info('[ ] {} not present in Plex nor on disk'.format(field))
 
 def UploadImagesToPlex(url_list, ratingKey, image_type):
@@ -147,29 +186,61 @@ def UploadImagesToPlex(url_list, ratingKey, image_type):
     else: continue  #continue if no break occured
     break           #cascade first break to exit both loops
 
-def nfo():  
+'''
+http://127.0.0.1:32400/photo/:/transcode?url=%2Flibrary%2Fmetadata%2F1326%2Ffile%3Furl%3Dupload%253A%252F%252Fposters%252Febe213fdbabb44fe6706c33bec7fa576a50da008%26X-Plex-Token%3Dxxxxxxxx&X-Plex-Token=
+url var decode1: /library/metadata/1326/file?url=upload%3A%2F%2Fposters%2Febe213fdbabb44fe6706c33bec7fa576a50da008&X-Plex-Token=TNmxEi64CzFSnbKhbQnw
+url var decode2: upload://posters/ebe213fdbabb44fe6706c33bec7fa576a50da008
+md5:  8954037BD59365EE7830FCFC3A72EE68
+sha1: C5DC6B1D5128D3AE2D19A712074C52E992438954
+http://127.0.0.1:32400/library/metadata/1326/posters?X-Plex-Token=xxxxxxxxxxxxxxxx
+String.Quote()
+Hash.MD5(data)
+Hash.SHA1(data)
+6.1. Standard API 85
+Plex Plug-in Framework Documentation
+, Release 2.1.1
+Hash.SHA224(data)
+Hash.SHA256(data)
+Hash.SHA384(data)
+Hash.SHA512(data)
+Hash.CRC32(data)
+hashlib.md5(data).hexdigest()
+'''
+
+def ValidatePrefs():
+  ''' Agent settings shared and accessible in Settings>Tab:Plex Media Server>Sidebar:Agents>Tab:Movies/TV Shows/Albums>Tab:Lambda
+      Pre-Defined ValidatePrefs function called when settings changed and output settings choosen (loading json file to get default settings and Prefs var list)
+      Last option reset agent to default values in "DefaultPrefs.json" by deleting Prefs settings file 
+  '''
+  Prefs['reset_to_defaults']  #'Loaded preferences from DefaultPrefs.json' + 'Loaded the user preferences for com.plexapp.agents.lambda'
+  filename_xml  = os.path.join(PlexRoot, 'Plug-in Support', 'Preferences',   'com.plexapp.agents.Lambda.xml')
+  filename_json = os.path.join(PlexRoot, 'Plug-ins',        'Lambda.bundle', 'Contents', 'DefaultPrefs.json')
+  Log.Info("".ljust(157, '='))
+  Log.Info ("ValidatePrefs() - PlexRoot: '{}'".format(PlexRoot))
+  Log.Info ("# agent settings json file: '{}'".format(os.path.relpath(filename_json, PlexRoot)))
+  Log.Info ("# agent settings xml prefs: '{}'".format(os.path.relpath(filename_xml , PlexRoot)))
+  if Prefs['reset_to_defaults'] and os.path.isfile(filename_xml):  os.remove(filename_xml)  #delete filename_xml file to reset settings to default
+  elif os.path.isfile(filename_json):
+    try:
+      json = JSON.ObjectFromString(Core.storage.load(filename_json), encoding=None)
+      for entry in json or []:  Log.Info("[{active}] Prefs[{key:<{width}}] = {value:<{width2}}, default = {default}".format(active=' ' if Prefs[entry['id']] in ('Ignored', False) else 'X', key="'"+entry['id']+"'", width=max(map(len, [x['id'] for x in json]))+2, value="'"+str(Prefs[entry['id']]).replace('¦','|')+"'", width2=max(map(len, [str(Prefs[x['id']]).replace('¦','|') for x in json]))+2, default="'{}'".format(entry['default'])))
+    except Exception as e:  Log.Info("Error :"+str(e)+", filename_json: "+filename_json)
+  Log.Info("".ljust(157, '='))
+  return MessageContainer('Success', "DefaultPrefs.json valid")
+
+def SetRating(key, rating):
+  ''' Called when changing rating in Plex interface
+  '''
   pass
-  '''
-    file         = os.path.join(path, 'xxxx', '.nfo')
-    nfo, changed = load_nfo_to_dict(file)  #no need to empty fill, loop will do
-    for field in fields:
-      plex_meta = getattr(metadata, field)
-      nfo_meta  = Dict   (nfo,      field)
-      if plex_meta:
-        if plex_meta==nfo_meta:  Log.Ingo('[=] field: xxxx identical')
-        else:                    SaveDict(plex_meta, nfo, field);  changed = 1
-      elif nfo_meta:             UpdateMetaField(metadata, metadata, MetaSources[language_source], FieldListMovies if movie else FieldListSeries, 'title', language_source, movie, source_list) 
-      elif not present:          SaveDict(None, nfo, field)
-    if not present or changed nfo in mem: Write_nfo_to_disk(file, nfo)
-  '''
-    
+  
 def Start():
   HTTP.CacheTime                  = 0
   HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
   HTTP.Headers['Accept-Language'] = 'en-us'
+  ValidatePrefs()
 
 def Search(results, media, lang, manual, agent_type):
-  ''' Download metadata using unique ID
+  ''' Assign unique ID
   '''
   Log(''.ljust(157, '='))
   Log("search() - lang:'{}', manual='{}', agent_type='{}'".format(lang, manual, agent_type))
@@ -181,7 +252,7 @@ def Search(results, media, lang, manual, agent_type):
   #metadata = media.primary_metadata  #full metadata object from here with all data, otherwise in Update() metadata will be empty
   
 def Update(metadata, media, lang, force, agent_type):
-  '''
+  ''' Download metadata using unique ID, but 'title' needs updating so metadata changes are saved
   '''
   folder, item       = GetMediaDir(media, agent_type)
   collections        = []
@@ -191,6 +262,8 @@ def Update(metadata, media, lang, force, agent_type):
   Log.Info(''.ljust(157, '='))
   Log.Info('Update(metadata, media="{}", lang="{}", force={}, agent_type={})'.format(media.title, lang, force, agent_type))
   Log.Info('folder: {}, item: {}'.format(folder, item))
+  
+  #create nfo xml obj  #load xml/nfo in memorry
   
   ### Plex libraries ###
   try:
@@ -240,6 +313,7 @@ def Update(metadata, media, lang, force, agent_type):
   ##### TV Shows (PLEX_URL_TVSHOWS) ###
   if agent_type=='show':
 
+    nfo_path=os.path.join(path, agent_type+'.nfo')
     count, total = 0, 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
@@ -252,9 +326,11 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(show.get('art'   ), folder, 'series_fanart')
             SaveFile(show.get('banner'), folder, 'series_banner')
             SaveFile(show.get('theme' ), folder, 'series_themes')
+            
             for collection in show.iterchildren('Collection'):
               Log.Info('collection:            {}'.format(collection.get('tag')))
               collections.append(collection.get('tag'))
+            #SaveFile(show.get('title' ), folder, 'nfo', nfo=nfo, metadata_field=metadata.title)
             if show.get('summary'              ):  Log.Info('[ ] summary:               {}'.format(show.get('summary'              )))
             if show.get('contentRating'        ):  Log.Info('[ ] contentRating:         {}'.format(show.get('contentRating'        )))
             if show.get('studio'               ):  Log.Info('[ ] studio:                {}'.format(show.get('studio'               )))
@@ -393,24 +469,17 @@ def Update(metadata, media, lang, force, agent_type):
                 Log.Info('[!] Skipping since on root folder')
                 break
               
-              # Artist poster
+              # Artist poster, fanart
               if track.get('grandparentThumb') not in ('', track.get('parentThumb')):  SaveFile(track.get('grandparentThumb'), folder, 'artist_poster')
               else:                                                                    Log.Info('[ ] artist_poster not present or same as album')
-              
-              # Artist fanart
-              if track.get('grandparentArt') not in ('', track.get('art')):            SaveFile(track.get('grandparentThumb'), folder, 'artist_fanart')
+              if track.get('grandparentArt'  ) not in ('', track.get('art')):          SaveFile(track.get('grandparentThumb'), folder, 'artist_fanart')
               else:                                                                    Log.Info('[ ] artist_fanart not present or same as album')
               
-              # Album poster
-              SaveFile(track.get('parentThumb'), folder, 'album_poster')
-              
-              # Album fanart
-              SaveFile(track.get('art'        ), folder, 'album_fanart')
-              
+              SaveFile(track.get('parentThumb'), folder, 'album_poster')  # Album poster
+              SaveFile(track.get('art'        ), folder, 'album_fanart')  # Album fanart
+              # SaveFile(track.get('thumb'), os.path.join(folder, 'track.jpg'), 'album_track_poster')
               # Log.Info(XML.StringFromElement(track))
               # Log.Info(XML.StringFromElement(part))
-              # track
-              # SaveFile(track.get('thumb'), os.path.join(folder, 'track.jpg'), 'album_track_poster')
               
               #Can extract posters and LRC from MP3 and m4a files
               break
@@ -443,18 +512,20 @@ def Update(metadata, media, lang, force, agent_type):
           
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
 
+  #Save nfo if different from file or file didn't exist
+  
 ### Agent declaration ##################################################################################################################################################
 class LambdaTV(Agent.TV_Shows):
-  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English]
+  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'show')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'show')
 
 class LambdaMovie(Agent.Movies):
-  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English]
+  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'movie')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'movie')
 
 class LambdaAlbum(Agent.Album):
-  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English]
+  name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'album')
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'album')
