@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Imports
+### Imports ##########################################################################################################################################
 import os                        # [path] abspath, join, dirname
 import re                        # split, compile
 import time                      # sleep
@@ -8,45 +8,13 @@ import inspect                   # getfile, currentframe
 import time                      # Used to print start time to console
 import hashlib                   # md5
 
-# Variables
-PlexRoot         = Core.app_support_path
-AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.lambda", "DataItems")
-PMS              = 'http://127.0.0.1:32400'  # Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
-PMSLIB           = PMS + '/library'
-PMSSEC           = PMSLIB + '/sections'
-PAGING           = '&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
-PLEX_URL_MOVIES  = PMSSEC + '/{}/all?type=1'  + PAGING
-PLEX_URL_TVSHOWS = PMSSEC + '/{}/all?type=2'  + PAGING
-PLEX_URL_SEASONS = PMSSEC + '/{}/all?type=3'  + PAGING
-PLEX_URL_EPISODE = PMSSEC + '/{}/all?type=4'  + PAGING
-PLEX_URL_ARTISTS = PMSSEC + '/{}/all?type=8'  + PAGING
-PLEX_URL_ALBUM   = PMSSEC + '/{}/all?type=9'  + PAGING
-PLEX_URL_TRACK   = PMSSEC + '/{}/all?type=10' + PAGING
-PLEX_URL_COLLECT = PMSSEC + '/{}/all?type=18' + PAGING
-PLEX_URL_COITEMS = PMSSEC + '/{}/children'    + PAGING
-PLEX_UPLOAD_TYPE = PMSLIB + '/metadata/{}/{}?url={}'
-PLEX_UPLOAD_TEXT = PMSSEC + '/{}/all?type=18&id={}&summary.value={}'
-WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
-TIMEOUT          = 30
-HEADERS          = {}
+### Functions ########################################################################################################################################
 
-FieldsMovies   = ('original_title', 'title', 'title_sort', 'roles', 'studio', 'year', 'originally_available_at', 'tagline', 'summary', 'content_rating', 'content_rating_age',
-                     'producers', 'directors', 'writers', 'countries', 'posters', 'art', 'themes', 'rating', 'quotes', 'trivia')
-FieldsSeries   = ('title', 'title_sort', 'originally_available_at', 'duration','rating',  'reviews', 'collections', 'genres', 'tags' , 'summary', 'extras', 'countries', 'rating_count',
-                     'content_rating', 'studio', 'countries', 'posters', 'banners', 'art', 'themes', 'roles', 'original_title', 
-                     'rating_image', 'audience_rating', 'audience_rating_image')  # Not in Framework guide 2.1.1, in https://github.com/plexinc-agents/TheMovieDb.bundle/blob/master/Contents/Code/__init__.py
-FieldsSeasons  = ('summary','posters', 'art')  #'summary', 
-FieldsEpisodes = ('title', 'summary', 'originally_available_at', 'writers', 'directors', 'producers', 'guest_stars', 'rating', 'thumbs', 'duration', 'content_rating', 'content_rating_age', 'absolute_index') #'titleSort
-FieldsArtists  = {}
-FieldsAlbums   = {}
-FieldsTracks   = {}
-
-# Functions
 def natural_sort_key(s):
   '''
-    Turn a string into string list of chunks "z23a" -> ["z", 23, "a"]. Useage:
-    - list.sort(key=natural_sort_key)
-    - sorted(list, key=natural_sort_key)
+    Turn a string into a chunks list like "z23a" -> ["z", 23, "a"] so it is sorted (1, 2, 3...) and not (1, 11, 12, 2, 3...). Usage:
+    - In-place list sorting:  list.sort(key=natural_sort_key)
+    - Return list copy:    sorted(list, key=natural_sort_key)
   '''
   return [ int(text) if text.isdigit() else text for text in re.split( re.compile('([0-9]+)'), str(s).lower() ) ]
 
@@ -131,6 +99,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
           except ImportError:  import xml.etree.ElementTree  as ET
           root   = etree.Element("root")                         #b'<root>'
           root   = etree.Element("root", interesting="totally")  #b'<root interesting="totally"/>'
+          root = XML.Element(name, text=None, **kwargs)
           root.insert(0, etree.Element("child0"))
           root.append( etree.Element("child1") )
           child2 = etree.SubElement(root, "child2", attrib={}, **extra)
@@ -166,10 +135,23 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name=""):
   else:  Log.Info('[ ] {} not present in Plex nor on disk'.format(field))
 
 def UploadImagesToPlex(url_list, ratingKey, image_type):
-  ''' https://github.com/defract/TMDB-Collection-Data-Retriever/blob/master/collection_updater.py line 211
+  ''' URL uploader for field not in metadata like collections
+  
+      https://github.com/defract/TMDB-Collection-Data-Retriever/blob/master/collection_updater.py line 211
       - url_list:    url or [url, ...]
       - ratingKey:   #
-      - image_type:  poster, fanart, season 
+      - image_type:  poster, fanart, season
+
+      http://127.0.0.1:32400/photo/:/transcode?url=%2Flibrary%2Fmetadata%2F1326%2Ffile%3Furl%3Dupload%253A%252F%252Fposters%252Febe213fdbabb44fe6706c33bec7fa576a50da008%26X-Plex-Token%3Dxxxxxxxx&X-Plex-Token=
+      url var decode1: /library/metadata/1326/file?url=upload%3A%2F%2Fposters%2Febe213fdbabb44fe6706c33bec7fa576a50da008&X-Plex-Token=TNmxEi64CzFSnbKhbQnw
+      url var decode2: upload://posters/ebe213fdbabb44fe6706c33bec7fa576a50da008
+      md5:             8954037BD59365EE7830FCFC3A72EE68
+      sha1:            C5DC6B1D5128D3AE2D19A712074C52E992438954
+      http://127.0.0.1:32400/library/metadata/1326/posters?X-Plex-Token=xxxxxxxxxxxxxxxx
+      
+      String.Quote()
+      Hash.XXX(data): MD5, SHA1. SHA224, SHA256, SHA384, SHA512, CRC32
+      hashlib.md5(data).hexdigest()      
   '''
   for url in url_list if isinstance(url_list, list) else [url_list] if url_list else []:
     r = HTTP.Request(PLEX_UPLOAD_TYPE.format(ratingKey, image_type+'s', ''), headers=HEADERS)
@@ -186,27 +168,11 @@ def UploadImagesToPlex(url_list, ratingKey, image_type):
     else: continue  #continue if no break occured
     break           #cascade first break to exit both loops
 
-'''
-http://127.0.0.1:32400/photo/:/transcode?url=%2Flibrary%2Fmetadata%2F1326%2Ffile%3Furl%3Dupload%253A%252F%252Fposters%252Febe213fdbabb44fe6706c33bec7fa576a50da008%26X-Plex-Token%3Dxxxxxxxx&X-Plex-Token=
-url var decode1: /library/metadata/1326/file?url=upload%3A%2F%2Fposters%2Febe213fdbabb44fe6706c33bec7fa576a50da008&X-Plex-Token=TNmxEi64CzFSnbKhbQnw
-url var decode2: upload://posters/ebe213fdbabb44fe6706c33bec7fa576a50da008
-md5:  8954037BD59365EE7830FCFC3A72EE68
-sha1: C5DC6B1D5128D3AE2D19A712074C52E992438954
-http://127.0.0.1:32400/library/metadata/1326/posters?X-Plex-Token=xxxxxxxxxxxxxxxx
-String.Quote()
-Hash.MD5(data)
-Hash.SHA1(data)
-6.1. Standard API 85
-Plex Plug-in Framework Documentation
-, Release 2.1.1
-Hash.SHA224(data)
-Hash.SHA256(data)
-Hash.SHA384(data)
-Hash.SHA512(data)
-Hash.CRC32(data)
-hashlib.md5(data).hexdigest()
-'''
-
+def SetRating(key, rating):
+  ''' Called when changing rating in Plex interface
+  '''
+  pass
+  
 def ValidatePrefs():
   ''' Agent settings shared and accessible in Settings>Tab:Plex Media Server>Sidebar:Agents>Tab:Movies/TV Shows/Albums>Tab:Lambda
       Pre-Defined ValidatePrefs function called when settings changed and output settings choosen (loading json file to get default settings and Prefs var list)
@@ -227,16 +193,10 @@ def ValidatePrefs():
     except Exception as e:  Log.Info("Error :"+str(e)+", filename_json: "+filename_json)
   Log.Info("".ljust(157, '='))
   return MessageContainer('Success', "DefaultPrefs.json valid")
-
-def SetRating(key, rating):
-  ''' Called when changing rating in Plex interface
-  '''
-  pass
-  
+ 
 def Start():
-  HTTP.CacheTime                  = 0
-  HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
-  HTTP.Headers['Accept-Language'] = 'en-us'
+  ''' Called when starting the agent
+  '''
   ValidatePrefs()
 
 def Search(results, media, lang, manual, agent_type):
@@ -254,16 +214,21 @@ def Search(results, media, lang, manual, agent_type):
 def Update(metadata, media, lang, force, agent_type):
   ''' Download metadata using unique ID, but 'title' needs updating so metadata changes are saved
   '''
-  folder, item       = GetMediaDir(media, agent_type)
-  collections        = []
-  parentRatingKey    = ""
+  collections                             = []
+  parentRatingKey                         = ""
   library_key, library_path, library_name = '', '', ''
+  path, item                            = GetMediaDir(media, agent_type)
   
   Log.Info(''.ljust(157, '='))
   Log.Info('Update(metadata, media="{}", lang="{}", force={}, agent_type={})'.format(media.title, lang, force, agent_type))
-  Log.Info('folder: {}, item: {}'.format(folder, item))
+  Log.Info('path: {}, item: {}'.format(path, item))
   
-  #create nfo xml obj  #load xml/nfo in memorry
+  ### NFO - generate filename, Load nfo if present, empty root element otherwise, create nfo xml object backup ###
+  nfo_file = os.path.join(path, Prefs[ nfo_pref[agent_type] ])
+  if Prefs[ nfo_pref[agent_type] ]=='Ignored':  nfo_xml = None
+  elif os.path.exists(nfo_file):                nfo_xml  = XML.ObjectFromString(Core.storage.load(nfo_file))
+  else:                                         nfo_xml  = XML.Element(nfo_root_tag[agent_type], xsd="http://www.w3.org/2001/XMLSchema", xsi="http://www.w3.org/2001/XMLSchema-instance", text=None)
+  nfo_copy = nfo_xml
   
   ### Plex libraries ###
   try:
@@ -271,8 +236,8 @@ def Update(metadata, media, lang, force, agent_type):
     Log.Info('Libraries: ')
     for directory in PLEX_LIBRARY_XML.iterchildren('Directory'):
       for location in directory:
-        Log.Info('[{}] id: {:>2}, type: {:>6}, library: {:<24}, path: {}'.format('*' if location.get('path') in folder else ' ', directory.get("key"), directory.get('type'), directory.get('title'), location.get("path")))
-        if ('artist' if agent_type=='album' else agent_type)==directory.get('type') and location.get('path') in folder:
+        Log.Info('[{}] id: {:>2}, type: {:>6}, library: {:<24}, path: {}'.format('*' if location.get('path') in path else ' ', directory.get("key"), directory.get('type'), directory.get('title'), location.get("path")))
+        if ('artist' if agent_type=='album' else agent_type)==directory.get('type') and location.get('path') in path:
           library_key, library_path, library_name = directory.get("key"), location.get("path"), directory.get('title')
   except Exception as e:  Log.Info("PMSSEC - Exception: '{}'".format(e))
   Log.Info('library_key: {}, library_path: {}, library_name: {}'.format(library_key, library_path, library_name))
@@ -285,25 +250,42 @@ def Update(metadata, media, lang, force, agent_type):
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
         PLEX_XML_MOVIES, count, total = xml_from_url_paging_load(PLEX_URL_MOVIES, library_key, count, WINDOW_SIZE[agent_type])
+        #Log.Info(XML.StringFromElement(PLEX_XML_MOVIES))  #Un-comment for XML code displayed in logs
         for video in PLEX_XML_MOVIES.iterchildren('Video'):
           if media.title==video.get('title'):   
+            #Log.Info(XML.StringFromElement(video))  #Un-comment for XML code displayed in logs
+            
             Log.Info('title:                 {}'.format(video.get('title')))
             filenoext = os.path.basename(os.path.splitext(media.items[0].parts[0].file)[0])
-            SaveFile(video.get('thumb'), folder, 'movies_poster', dynamic_name=filenoext)
-            SaveFile(video.get('art'  ), folder, 'movies_fanart', dynamic_name=filenoext)
+            
+            ### Poster, Fanart ###            
+            SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext)
+            SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext)
+            
+            ### Collections ###
             for collection in video.iterchildren('Collection'):
               collections.append(collection.get('tag'))
               Log.Info('collection:            {}'.format(collection.get('tag')))
+            
+            ### NFO ###
+            #xml_element_add(nfo_xml, tag='title',          text=video.get('title'                ))
+            #xml_element_add(nfo_xml, tag='sorttitle',     text=video.get(''                ))
+            #xml_element_add(nfo_xml, tag='originaltitle', text=video.get(''                ))
+            #xml_element_add(nfo_xml, tag='originaltitle', text=video.get('rating'               ))
+            #xml_element_add(nfo_xml, tag='mpaa',           text=video.get('contentRating'        ))  #need to start with 'Rated '
+            #xml_element_add(nfo_xml, tag='studio',         text=video.get('studio'               ))
+            #xml_element_add(nfo_xml, tag='tagline',       text=video.get(''              ))
+            #xml_element_add(nfo_xml, tag='plot',           text=video.get('summary'              ))
+            #xml_element_add(nfo_xml, tag='director',      text=video.get(''              ))
+            #xml_element_add(nfo_xml, tag='country',       text=video.get(''              ))
+            #xml_element_add(nfo_xml, tag='genre',         text=video.get(''              ))
+            #xml_element_add(nfo_xml, tag='credit',        text=video.get('summary'              ))  #writer
             if video.get('ratingKey'            ):  Log.Info('[ ] ratingKey:             {}'.format(video.get('ratingKey'            )));  parentRatingKey = video.get('ratingKey')
-            if video.get('summary'              ):  Log.Info('[ ] summary:               {}'.format(video.get('summary'              )))
             if video.get('contentRating'        ):  Log.Info('[ ] contentRating:         {}'.format(video.get('contentRating'        )))
-            if video.get('studio'               ):  Log.Info('[ ] studio:                {}'.format(video.get('studio'               )))
-            if video.get('rating'               ):  Log.Info('[ ] rating:                {}'.format(video.get('rating'               )))
             if video.get('year'                 ):  Log.Info('[ ] year:                  {}'.format(video.get('year'                 )))
             if video.get('duration'             ):  Log.Info('[ ] duration:              {}'.format(video.get('duration'             )))
             if video.get('originallyAvailableAt'):  Log.Info('[ ] originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
             if video.get('key'                  ):  Log.Info('[ ] key:                   {}'.format(video.get('key'                  )))
-            #Log.Info(XML.StringFromElement(PLEX_XML_MOVIES))  #Un-comment for XML code displayed in logs
             break
         else:  continue
         break      
@@ -313,7 +295,6 @@ def Update(metadata, media, lang, force, agent_type):
   ##### TV Shows (PLEX_URL_TVSHOWS) ###
   if agent_type=='show':
 
-    nfo_path=os.path.join(path, agent_type+'.nfo')
     count, total = 0, 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
@@ -322,15 +303,15 @@ def Update(metadata, media, lang, force, agent_type):
           if media.title==show.get('title'):   
             Log.Info('title:                 {}'.format(show.get('title')))
             if show.get('ratingKey'):  parentRatingKey = show.get('ratingKey')
-            SaveFile(show.get('thumb' ), folder, 'series_poster')
-            SaveFile(show.get('art'   ), folder, 'series_fanart')
-            SaveFile(show.get('banner'), folder, 'series_banner')
-            SaveFile(show.get('theme' ), folder, 'series_themes')
+            SaveFile(show.get('thumb' ), path, 'series_poster')
+            SaveFile(show.get('art'   ), path, 'series_fanart')
+            SaveFile(show.get('banner'), path, 'series_banner')
+            SaveFile(show.get('theme' ), path, 'series_themes')
             
             for collection in show.iterchildren('Collection'):
               Log.Info('collection:            {}'.format(collection.get('tag')))
               collections.append(collection.get('tag'))
-            #SaveFile(show.get('title' ), folder, 'nfo', nfo=nfo, metadata_field=metadata.title)
+            #SaveFile(show.get('title' ), path, 'nfo', nfo=nfo, metadata_field=metadata.title)
             if show.get('summary'              ):  Log.Info('[ ] summary:               {}'.format(show.get('summary'              )))
             if show.get('contentRating'        ):  Log.Info('[ ] contentRating:         {}'.format(show.get('contentRating'        )))
             if show.get('studio'               ):  Log.Info('[ ] studio:                {}'.format(show.get('studio'               )))
@@ -355,8 +336,8 @@ def Update(metadata, media, lang, force, agent_type):
           if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
             #Log.Info(XML.StringFromElement(show))
             if show.get('title'):  Log.Info('[ ] title:               {}'.format(show.get('title')))
-            SaveFile(show.get('thumb' ), folder, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX
-            SaveFile(show.get('art'   ), folder, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX)
+            SaveFile(show.get('thumb' ), path, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX
+            SaveFile(show.get('art'   ), path, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX)
       except Exception as e:  Log.Info("PLEX_URL_SEASONS - Exception: '{}'".format(e));  raise
       
     ### Episode thumbs list
@@ -391,8 +372,8 @@ def Update(metadata, media, lang, force, agent_type):
                 Log.Info('[ ] key:                   {}'.format( part.get('key'    )))
                 Log.Info('[ ] file:                  {}'.format( part.get('file'   )))
                 episodes.remove(part.get('file'))
-                folder, filename = os.path.split(part.get('file'))
-                SaveFile(video.get('thumb'), folder, 'episode_thumbs', dynamic_name=os.path.splitext(filename)[0])
+                path, filename = os.path.split(part.get('file'))
+                SaveFile(video.get('thumb'), path, 'episode_thumbs', dynamic_name=os.path.splitext(filename)[0])
                 for director in video.iterdescendants('Director'):
                   Log.Info(  '[ ] director: {}'.format(director.get('tag')))
                 for writer   in video.iterdescendants('Director'):
@@ -414,18 +395,13 @@ def Update(metadata, media, lang, force, agent_type):
         Log.Debug("PLEX_URL_MOVIES [{}-{} of {}]".format(count+1, count+int(PLEX_ARTIST_XML.get('size')) ,total))
         #for directory in PLEX_ARTIST_XML.iterchildren('Directory'):
         #  Log.Info("media.title: {}, media.parentTitle: {}, media.id: {}, directory.get('title'): {}".format(media.title, media.parentTitle, media.id, directory.get('title')))
-        count += WINDOW_SIZE[agent_type]
       except Exception as e:  Log.Info("Exception: '{}'".format(e))    
     
     ### ALBUM ###
     count = 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
-        PLEX_ALBUM_XML = XML.ElementFromURL(PLEX_URL_ALBUM.format(library_key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-        total = int(PLEX_ALBUM_XML.get('totalSize'))
-        Log.Debug("PLEX_URL_ALBUM [{}-{} of {}]".format(count+1, count+int(PLEX_ALBUM_XML.get('size')) ,total))
-        
-        #Log.Info(XML.StringFromElement(PLEX_ALBUM_XML))  #Un-comment for XML code displayed in logs
+        PLEX_ALBUM_XML = xml_from_url_paging_load(PLEX_URL_ALBUM, library_key, count, WINDOW_SIZE[agent_type])
         Log.Info("media.title: {}, media.parentTitle: {}, media.id: {}".format(media.title, media.parentTitle, media.id))
         for directory in PLEX_ALBUM_XML.iterchildren('Directory'):
           Log.Info("directory.get('title'): {}, directory.get('parentTitle'): {}".format(directory.get('title'), directory.get('parentTitle')))
@@ -435,14 +411,14 @@ def Update(metadata, media, lang, force, agent_type):
             if directory.get('title'                ):  Log.Info('title:                 {}'.format(directory.get('title')))
             if Prefs['album_poster' ] and directory.get('thumb'):
               Log.Info('thumb:                 {}'.format(directory.get('thumb')))
-              SaveFile(PMS+directory.get('thumb' ), os.path.join(folder, 'cover.jpg'     ), 'poster')
+              SaveFile(PMS+directory.get('thumb' ), os.path.join(path, 'cover.jpg'     ), 'poster')
             if Prefs['artist_poster'] and directory.get('parentThumb') not in ('', directory.get('thumb')):  
               Log.Info('parentThumb:                 {}'.format(directory.get('parentThumb')))
-              SaveFile(PMS+directory.get('thumb' ), os.path.join(folder, 'artist-poster.jpg'), 'poster')
+              SaveFile(PMS+directory.get('thumb' ), os.path.join(path, 'artist-poster.jpg'), 'poster')
             for collection in directory.iterchildren('Collection'):  Log.Info('collection:            {}'.format(collection.get('tag')));  collections.append(collection.get('tag'))
             found = True
             break
-        else:  count += WINDOW_SIZE[agent_type];  continue
+        else:  continue
         break      
       except Exception as e:  Log.Info("Exception: '{}'".format(e))
     '''
@@ -470,14 +446,14 @@ def Update(metadata, media, lang, force, agent_type):
                 break
               
               # Artist poster, fanart
-              if track.get('grandparentThumb') not in ('', track.get('parentThumb')):  SaveFile(track.get('grandparentThumb'), folder, 'artist_poster')
+              if track.get('grandparentThumb') not in ('', track.get('parentThumb')):  SaveFile(track.get('grandparentThumb'), path, 'artist_poster')
               else:                                                                    Log.Info('[ ] artist_poster not present or same as album')
-              if track.get('grandparentArt'  ) not in ('', track.get('art')):          SaveFile(track.get('grandparentThumb'), folder, 'artist_fanart')
+              if track.get('grandparentArt'  ) not in ('', track.get('art')):          SaveFile(track.get('grandparentThumb'), path, 'artist_fanart')
               else:                                                                    Log.Info('[ ] artist_fanart not present or same as album')
               
-              SaveFile(track.get('parentThumb'), folder, 'album_poster')  # Album poster
-              SaveFile(track.get('art'        ), folder, 'album_fanart')  # Album fanart
-              # SaveFile(track.get('thumb'), os.path.join(folder, 'track.jpg'), 'album_track_poster')
+              SaveFile(track.get('parentThumb'), path, 'album_poster')  # Album poster
+              SaveFile(track.get('art'        ), path, 'album_fanart')  # Album fanart
+              # SaveFile(track.get('thumb'), os.path.join(path, 'track.jpg'), 'album_track_poster')
               # Log.Info(XML.StringFromElement(track))
               # Log.Info(XML.StringFromElement(part))
               
@@ -489,7 +465,7 @@ def Update(metadata, media, lang, force, agent_type):
       except Exception as e:  Log.Info("Exception: '{}'".format(e))
     
   ### Collection loop for collection poster, fanart, summary ###
-  count = 0
+  count, total = 0, 0
   while collections and (count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]):
     try:
       
@@ -497,7 +473,6 @@ def Update(metadata, media, lang, force, agent_type):
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         if directory.get('title') in collections:
           Log.Debug("[ ] Directory: '{}'".format( directory.get('title') ))
-          
           dirname = os.path.join(library_path if Prefs['collection_folder']=='local' else AgentDataFolder, '_Collections', directory.get('title'))
           SaveFile(directory.get('thumb'  ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(directory.get('art'    ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
@@ -509,12 +484,13 @@ def Update(metadata, media, lang, force, agent_type):
           #directory.get('addedAt')
           #directory.get('updatedAt')
           #directory.get('childCount')
-          
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
 
-  #Save nfo if different from file or file didn't exist
+  ### Save nfo if different from file or file didn't exist ###
+  if Prefs[nfo_pref[agent_type]]!='Ignored' and nfo_xml and XML.StringFromObject(nfo_xml, encoding='utf-8')!=XML.StringFromObject(nfo_copy, encoding='utf-8'):
+    Core.storage.save(nfo_file, XML.StringFromObject(nfo_xml, encoding='utf-8'))
   
-### Agent declaration ##################################################################################################################################################
+### Agent declaration ################################################################################################################################
 class LambdaTV(Agent.TV_Shows):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'show')
@@ -529,3 +505,43 @@ class LambdaAlbum(Agent.Album):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'album')
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'album')
+
+### Variables ########################################################################################################################################
+PlexRoot         = Core.app_support_path
+AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.lambda", "DataItems")
+PMS              = 'http://127.0.0.1:32400'  # Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
+PMSLIB           = PMS + '/library'
+PMSSEC           = PMSLIB + '/sections'
+PAGING           = '&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
+PLEX_URL_MOVIES  = PMSSEC + '/{}/all?type=1'  + PAGING
+PLEX_URL_TVSHOWS = PMSSEC + '/{}/all?type=2'  + PAGING
+PLEX_URL_SEASONS = PMSSEC + '/{}/all?type=3'  + PAGING
+PLEX_URL_EPISODE = PMSSEC + '/{}/all?type=4'  + PAGING
+PLEX_URL_ARTISTS = PMSSEC + '/{}/all?type=8'  + PAGING
+PLEX_URL_ALBUM   = PMSSEC + '/{}/all?type=9'  + PAGING
+PLEX_URL_TRACK   = PMSSEC + '/{}/all?type=10' + PAGING
+PLEX_URL_COLLECT = PMSSEC + '/{}/all?type=18' + PAGING
+PLEX_URL_COITEMS = PMSSEC + '/{}/children'    + PAGING
+PLEX_UPLOAD_TYPE = PMSLIB + '/metadata/{}/{}?url={}'
+PLEX_UPLOAD_TEXT = PMSSEC + '/{}/all?type=18&id={}&summary.value={}'
+WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
+TIMEOUT          = 30
+HTTP.CacheTime   = 0
+HEADERS          = {}
+
+nfo_pref         = {'movie': 'movies_nfo', 'show': 'series_nfo', 'album':'album_nfo'}
+nfo_root_tag     = {'movie': '???',        'show': 'tvshow',     'album':'???'      }
+
+FieldsMovies     = ('original_title', 'title', 'title_sort', 'roles', 'studio', 'year', 'originally_available_at', 'tagline', 'summary', 'content_rating', 'content_rating_age',
+                    'producers', 'directors', 'writers', 'countries', 'posters', 'art', 'themes', 'rating', 'quotes', 'trivia')
+FieldsSeries     = ('title', 'title_sort', 'originally_available_at', 'duration','rating',  'reviews', 'collections', 'genres', 'tags' , 'summary', 'extras', 'countries', 'rating_count',
+                     'content_rating', 'studio', 'countries', 'posters', 'banners', 'art', 'themes', 'roles', 'original_title', 
+                     'rating_image', 'audience_rating', 'audience_rating_image')  # Not in Framework guide 2.1.1, in https://github.com/plexinc-agents/TheMovieDb.bundle/blob/master/Contents/Code/__init__.py
+FieldsSeasons    = ('summary','posters', 'art')  #'summary', 
+FieldsEpisodes   = ('title', 'summary', 'originally_available_at', 'writers', 'directors', 'producers', 'guest_stars', 'rating', 'thumbs', 'duration', 'content_rating', 'content_rating_age', 'absolute_index') #'titleSort
+FieldsArtists    = {}
+FieldsAlbums     = {}
+FieldsTracks     = {}
+
+HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
+HTTP.Headers['Accept-Language'] = 'en-us'
