@@ -9,7 +9,6 @@ import time                      # Used to print start time to console
 import hashlib                   # md5
 
 ### Functions ########################################################################################################################################
-
 def natural_sort_key(s):
   '''
     Turn a string into a chunks list like "z23a" -> ["z", 23, "a"] so it is sorted (1, 2, 3...) and not (1, 11, 12, 2, 3...). Usage:
@@ -23,20 +22,6 @@ def file_extension(file):
   '''
   return file[1:] if file.count('.') == 1 and file.startswith('.') else os.path.splitext(file)[1].lstrip('.').lower()
 
-def GetMediaDir (media, agent_type):
-  ''' Returns folder and file touple for media
-      - media:       media received by update()
-      - agent_type:  movie|show|album
-  '''
-  if agent_type=='movie':  return os.path.split(media.items[0].parts[0].file)
-  if agent_type=='show':
-    dirs=[]
-    for s in media.seasons if media else []: # TV_Show:
-      for e in media.seasons[s].episodes:
-        return os.path.split(media.seasons[s].episodes[e].items[0].parts[0].file)
-  if agent_type=='album':
-    for track in media.tracks:
-      return os.path.split(media.tracks[track].items[0].parts[0].file)
 
 def xml_from_url_paging_load(URL, key, count, window):
   ''' Load the URL xml page while handling total number of items and paging
@@ -214,21 +199,23 @@ def Search(results, media, lang, manual, agent_type):
 def Update(metadata, media, lang, force, agent_type):
   ''' Download metadata using unique ID, but 'title' needs updating so metadata changes are saved
   '''
-  collections                             = []
-  parentRatingKey                         = ""
-  library_key, library_path, library_name = '', '', ''
-  path, item                            = GetMediaDir(media, agent_type)
-  
   Log.Info(''.ljust(157, '='))
   Log.Info('Update(metadata, media="{}", lang="{}", force={}, agent_type={})'.format(media.title, lang, force, agent_type))
-  Log.Info('path: {}, item: {}'.format(path, item))
   
-  ### NFO - generate filename, Load nfo if present, empty root element otherwise, create nfo xml object backup ###
-  nfo_file = os.path.join(path, Prefs[ nfo_pref[agent_type] ])
-  if Prefs[ nfo_pref[agent_type] ]=='Ignored':  nfo_xml = None
-  elif os.path.exists(nfo_file):                nfo_xml  = XML.ObjectFromString(Core.storage.load(nfo_file))
-  else:                                         nfo_xml  = XML.Element(nfo_root_tag[agent_type], xsd="http://www.w3.org/2001/XMLSchema", xsi="http://www.w3.org/2001/XMLSchema-instance", text=None)
-  nfo_copy = nfo_xml
+  ### Media folder retrieval ###
+  if   agent_type=='movie':  path, item = os.path.split(media.items[0].parts[0].file)
+  elif agent_type=='show':
+    dirs=[]
+    for s in media.seasons if media else []: # TV_Show:
+      for e in media.seasons[s].episodes:
+        path, item =  os.path.split(media.seasons[s].episodes[e].items[0].parts[0].file)
+        break
+      else: continue
+      break
+  elif agent_type=='album':
+    for track in media.tracks:
+      path, item = os.path.split(media.tracks[track].items[0].parts[0].file)
+      break
   
   ### Plex libraries ###
   try:
@@ -239,9 +226,43 @@ def Update(metadata, media, lang, force, agent_type):
         Log.Info('[{}] id: {:>2}, type: {:>6}, library: {:<24}, path: {}'.format('*' if location.get('path') in path else ' ', directory.get("key"), directory.get('type'), directory.get('title'), location.get("path")))
         if ('artist' if agent_type=='album' else agent_type)==directory.get('type') and location.get('path') in path:
           library_key, library_path, library_name = directory.get("key"), location.get("path"), directory.get('title')
-  except Exception as e:  Log.Info("PMSSEC - Exception: '{}'".format(e))
-  Log.Info('library_key: {}, library_path: {}, library_name: {}'.format(library_key, library_path, library_name))
-  Log.Info('')
+  except Exception as e:  Log.Info("PMSSEC - Exception: '{}'".format(e));  library_key, library_path, library_name = '', '', ''
+  else:
+    
+    ### Extract season and transparent folder to reduce complexity and use folder as serie name ###
+    rel_path            = os.path.relpath(path, library_path)
+    series_root_folder  = os.path.join   (library_path, rel_path.split(os.sep, 1)[0])
+    rel_reverse_path    = list(reversed(rel_path.split(os.sep)))
+    subfolder_count     = len([file for file in os.listdir(series_root_folder) if os.path.isdir(os.path.join(series_root_folder, file))])
+    SEASON_RX = [ 'Specials',                                                                                                                                           # Specials (season 0)
+                  '(Season|Series|Book|Saison|Livre|S)[ _\-]*(?P<season>[0-9]{1,2}).*',                                                                                 # Season ##, Series #Book ## Saison ##, Livre ##, S##, S ##
+                  '(?P<show>.*?)[\._\- ]+[sS](?P<season>[0-9]{2})',                                                                                                     # (title) S01
+                  '(?P<season>[0-9]{1,2})a? Stagione.*',                                                                                                                # ##a Stagione
+                  '(?P<season>[0-9]{1,2}).*',	                                                                                                                          # ##
+                  '^.*([Ss]aga]|([Ss]tory )?[Aa][Rr][KkCc]).*$'                                                                                                         # Last entry in array, folder name droped but files kept: Story, Arc, Ark, Video
+                ]                                                                                                                                                       #
+    for folder in rel_reverse_path:              # 
+      for rx in SEASON_RX:                      # in anime, more specials folders than season folders, so doing it first
+        if re.match(rx, folder, re.IGNORECASE):  # get season number but Skip last entry in seasons (skipped folders)
+          Log.Info('rx: {}'.format(rx))
+          if rx!=SEASON_RX[-1]:  rel_reverse_path.remove(folder)        # Since iterating slice [:] or [:-1] doesn't hinder iteration. All ways to remove: reverse_path.pop(-1), reverse_path.remove(thing|array[0])
+          break
+    
+    Log.Info('library_key: {}, library_path: {}, library_name: {}'.format(library_key, library_path, library_name))
+    Log.Info("rel_path: {}, rel_reverse_path: {}".format(rel_path, rel_reverse_path))
+    path = os.path.join(library_path, rel_path.split(rel_reverse_path[0])[0], rel_reverse_path[0])
+    Log.Info("series folder detected: {}".format(path))
+    Log.Info('')
+    
+  ### NFO - generate filename, Load nfo if present, empty root element otherwise, create nfo xml object backup ###
+  #nfo_file = os.path.join(path, Prefs[ nfo_pref[agent_type] ])
+  #if Prefs[ nfo_pref[agent_type] ]=='Ignored':  nfo_xml = None
+  #elif os.path.exists(nfo_file):                nfo_xml  = XML.ObjectFromString(Core.storage.load(nfo_file))
+  #else:                                         nfo_xml  = XML.Element(nfo_root_tag[agent_type], xsd="http://www.w3.org/2001/XMLSchema", xsi="http://www.w3.org/2001/XMLSchema-instance", text=None)
+  #nfo_copy = nfo_xml
+  
+  ###  ###
+  collections, parentRatingKey = [], ""
   
   ### Movies (PLEX_URL_MOVIES) ###
   if agent_type=='movie':
@@ -336,8 +357,12 @@ def Update(metadata, media, lang, force, agent_type):
           if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
             #Log.Info(XML.StringFromElement(show))
             if show.get('title'):  Log.Info('[ ] title:               {}'.format(show.get('title')))
-            SaveFile(show.get('thumb' ), path, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX
-            SaveFile(show.get('art'   ), path, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else show.get('title')[6:] if show.get('title') else '') #SeasonXX)
+            season = show.get('title')[6:].strip()
+            for episode in media.seasons[season].episodes:
+              season_folder = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)[0]
+              SaveFile(show.get('thumb' ), season_folder, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else season.zfill(2) if show.get('title') else '') #SeasonXX
+              SaveFile(show.get('art'   ), season_folder, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else season.zfill(2) if show.get('title') else '') #SeasonXX)
+              break
       except Exception as e:  Log.Info("PLEX_URL_SEASONS - Exception: '{}'".format(e));  raise
       
     ### Episode thumbs list
@@ -493,16 +518,22 @@ def Update(metadata, media, lang, force, agent_type):
 ### Agent declaration ################################################################################################################################
 class LambdaTV(Agent.TV_Shows):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
+  persist_stored_files = False
+  contributes_to       = ['com.plexapp.agents.thetvdb', 'com.plexapp.agents.none']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'show')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'show')
 
 class LambdaMovie(Agent.Movies):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
+  persist_stored_files = False
+  contributes_to       = ['com.plexapp.agents.imdb', 'com.plexapp.agents.none']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'movie')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'movie')
 
 class LambdaAlbum(Agent.Album):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
+  persist_stored_files = False
+  contributes_to       = ['com.plexapp.agents.discogs', 'com.plexapp.agents.lastfm', 'com.plexapp.agents.plexmusic', 'com.plexapp.agents.none']
   def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'album')
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'album')
 
