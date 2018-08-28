@@ -278,23 +278,24 @@ def Update(metadata, media, lang, force, agent_type):
               Log.Info('collection:            {}'.format(collection.get('tag')))
             
             ### NFO ###
-            #xml_element_add(nfo_xml, tag='title',          text=video.get('title'                ))
-            #xml_element_add(nfo_xml, tag='sorttitle',     text=video.get(''                ))
-            #xml_element_add(nfo_xml, tag='originaltitle', text=video.get(''                ))
-            #xml_element_add(nfo_xml, tag='originaltitle', text=video.get('rating'               ))
-            #xml_element_add(nfo_xml, tag='mpaa',           text=video.get('contentRating'        ))  #need to start with 'Rated '
-            #xml_element_add(nfo_xml, tag='studio',         text=video.get('studio'               ))
+            duration = (video.get('duration') or 0) / (1000 * 60) # in minutes in nfo in ms in Plex
+            rated    = 'Rated '+video.get('contentRating') if video.get('contentRating') else ''
+            SaveFile(rated                             , path, 'movies_nfo', metadata_field=metadata.content_rating,          xml_field='mpaa',    nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(video.get('title'                ), path, 'movies_nfo', metadata_field=metadata.title,                   xml_field='title',   nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(video.get('rating'               ), path, 'movies_nfo', metadata_field=metadata.rating,                  xml_field='rating',  nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(video.get('studio'               ), path, 'movies_nfo', metadata_field=metadata.studio,                  xml_field='studio',  nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(video.get('summary'              ), path, 'movies_nfo', metadata_field=metadata.summary,                 xml_field='plot',    nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(video.get('year'                 ), path, 'movies_nfo', metadata_field=metadata.year,                    xml_field='year',    nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(duration                          , path, 'movies_nfo', metadata_field=metadata.duration,                xml_field='runtime', nfo_xml=nfo_xml, agent_type=agent_type)
+            SaveFile(video.get('originallyAvailableAt'), path, 'movies_nfo', metadata_field=metadata.originally_available_at, xml_field='aired',   nfo_xml=nfo_xml, agent_type=agent_type)
+            #xml_element_add(nfo_xml, tag='sorttitle',     text=video.get(''              ))
+            #xml_element_add(nfo_xml, tag='originaltitle', text=video.get(''              ))
             #xml_element_add(nfo_xml, tag='tagline',       text=video.get(''              ))
-            #xml_element_add(nfo_xml, tag='plot',           text=video.get('summary'              ))
             #xml_element_add(nfo_xml, tag='director',      text=video.get(''              ))
             #xml_element_add(nfo_xml, tag='country',       text=video.get(''              ))
             #xml_element_add(nfo_xml, tag='genre',         text=video.get(''              ))
-            #xml_element_add(nfo_xml, tag='credit',        text=video.get('summary'              ))  #writer
+            #xml_element_add(nfo_xml, tag='credit',        text=video.get(''              ))  #writer
             if video.get('ratingKey'            ):  Log.Info('[ ] ratingKey:             {}'.format(video.get('ratingKey'            )));  parentRatingKey = video.get('ratingKey')
-            if video.get('contentRating'        ):  Log.Info('[ ] contentRating:         {}'.format(video.get('contentRating'        )))
-            if video.get('year'                 ):  Log.Info('[ ] year:                  {}'.format(video.get('year'                 )))
-            if video.get('duration'             ):  Log.Info('[ ] duration:              {}'.format(video.get('duration'             )))
-            if video.get('originallyAvailableAt'):  Log.Info('[ ] originallyAvailableAt: {}'.format(video.get('originallyAvailableAt')))
             if video.get('key'                  ):  Log.Info('[ ] key:                   {}'.format(video.get('key'                  )))
             break
         else:  continue
@@ -336,7 +337,6 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(show.get('contentRating'        ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='mpaa',    metadata_field=metadata.summary,                 agent_type=agent_type)
             SaveFile(show.get('studio'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='studio',  metadata_field=metadata.studio,                  agent_type=agent_type)
             SaveFile(show.get('rating'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='rating',  metadata_field=metadata.rating,                  agent_type=agent_type)
-            #SaveFile(show.get('year'                 ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='year',    metadata_field=metadata.year,                   agent_type=agent_type)
             SaveFile(show.get('duration'             ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='runtime', metadata_field=metadata.duration,                agent_type=agent_type)
             SaveFile(show.get('originallyAvailableAt'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='aired',   metadata_field=metadata.originally_available_at, agent_type=agent_type)
             #if show.get('key'                  ):  Log.Info('[ ] key:                   {}'.format(show.get('key'                  )))
@@ -412,7 +412,8 @@ def Update(metadata, media, lang, force, agent_type):
   
   if agent_type=='album':
 
-    '''### PLEX_URL_ARTISTS ###
+    '''
+    ### PLEX_URL_ARTISTS ###
     count = 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
       try:
@@ -449,6 +450,8 @@ def Update(metadata, media, lang, force, agent_type):
         else:  continue
         break      
       except Exception as e:  Log.Info("Exception: '{}'".format(e))
+    
+    #SaveFile(video.get('originallyAvailableAt'), path, 'movies_nfo', metadata_field=metadata.originally_available_at, xml_field='aired',   nfo_xml=nfo_xml, agent_type=agent_type)
     '''
 
     ### PLEX_URL_TRACK ###
