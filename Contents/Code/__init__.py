@@ -8,6 +8,7 @@ import inspect                   # getfile, currentframe
 import time                      # Used to print start time to console
 import hashlib                   # md5
 import copy                      # deepcopy
+from   io import open as open
 
 ### Functions ########################################################################################################################################
 def natural_sort_key(s):
@@ -21,7 +22,7 @@ def natural_sort_key(s):
 def file_extension(file):
   ''' return file extension, and if starting with single dot in filename, equals what's after the dot 
   '''
-  return file[1:] if file.count('.') == 1 and file.startswith('.') else file.lower().split('.')[-1]
+  return file[1:] if file.count('.') == 1 and file.startswith('.') else file.lower().split('.')[-1] if '.' in os.path.basename(file) else 'jpg'
 
 
 def xml_from_url_paging_load(URL, key, count, window):
@@ -38,15 +39,13 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       destination:  path to export file
       field:        Prefs field name to check if export/importing
   '''
-  Log.Info('SaveFile({}, {}, {}, ...) Prefs[field]: {}'.format(thumb, path, field, Prefs[field]))
-  if not thumb or not path or not field or not Prefs[field]:  Log.Info('return due to empy field'); return
+  Log.Info('SaveFile("{}", "{}", "{}", ...) Prefs[field]: "{}"'.format(thumb, path, field, Prefs[field]))
+  if not thumb or not path or not field or not Prefs[field]:  return  #Log.Info('return due to empy field')
   
   filename    = Prefs[field].split('¦')[1 if dynamic_name  and '¦' in Prefs[field] else 0] if 'season' in field and '¦' in Prefs[field] else Prefs[field]#dynamic name for seasons 1+ not specials
   destination = os.path.join(path, filename.format(dynamic_name).replace('.ext', '.'+(file_extension(PMS+thumb) or 'jpg')))  #Log.Info("destination: {}".format(destination))
   ext         = file_extension(destination)  #Log.Info("ext: {}".format(ext))
-  
-  Log.Info("[ ] thumb: {}, path: {}, field:{}, Prefs[field]: {}, dynamic_name: {}".format(thumb, path, field, Prefs[field], dynamic_name))
-  Log.Info("[ ] filename: {}, destination: {}, ext: {}".format(filename, destination, ext))
+  #Log.Info('[ ] destination:  "{}"'.format(destination))
   
   ### plex_value
   try:
@@ -54,40 +53,34 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       if ext in ('jpg', 'mp3'):  plex_value = HTTP.Request(PMS+thumb).content #response.headers['content-length']
       else:                      plex_value = thumb #txt, nfo
     else:                        plex_value = ''  
-    Log.Info('[?] plex_value : "{}"'.format('binary...' if ext in ('jpg', 'mp3') and plex_value else plex_value))
+    if DEBUG:  Log.Info('[?] plex_value:   "{}"'.format('binary...' if ext in ('jpg', 'mp3') and plex_value else plex_value))
   except Exception as e:         Log.Info('plex_value - Exception: "{}"'.format(e));  return
   
   ### local_value
   try:
+    #Log.Info('[!] ext:    "{}", destination: "{}"'.format(ext, destination))
     if ext=='nfo':
       tag         = nfo_xml.xpath('//{}/{}'.format(nfo_root_tag[field], xml_field))  #Log.Info('tag: {}'.format(tag))
       local_value = tag[0].text if tag else ''                                        #xml_field_value=nfo_xml.find(xml_field).text if nfo and nfo_xml.find(xml_field) else ''  # get xml field
-    elif ext in ('jpg', 'mp3'):
-      local_value = Core.storage.load(destination) if  os.path.exists(destination) else ''    
-    elif ext=='txt':
-      Log.Info("destination: '{}'".format(destination))
-      r = HTTP.Request(PLEX_UPLOAD_TEXT.format(key, ratingKey, String.Quote(Core.storage.load(destination))), headers=HEADERS, method='PUT')
-      Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
-      local_value = r.content
+    elif ext in ('jpg', 'mp3', 'ext', 'txt'): local_value = Core.storage.load(destination) if os.path.exists(destination) else ''
     else:
-      Log.Info('ext not recognised - filename: {}, destination: {}, ext: "{}"'.format(filename, destination, ext))
+      if DEBUG:  Log.Info('[!] extension:    "{}"'.format(ext))
       local_value=None
       return
-    Log.Info('[?] local_value: "{}"'.format('binary...' if ext in ('jpg', 'mp3') and local_value else local_value))
+    if DEBUG:  Log.Info('[?] local_value: "{}"'.format('binary...' if ext in ('jpg', 'mp3') and local_value else local_value))
   
   except Exception as e:         Log.Info('local_value - Exception: "{}"'.format(e));  return
  
-  if Prefs[field]=='Ignored':    Log.Info('[@] {}: {}'.format(''.format() if xml_field else field, os.path.basename(destination)))  # Ignored but text output given for checking behaviour without updating 
-  elif local_value==plex_value:  Log.Info('[=] {}: {}'.format(field, os.path.basename(destination)))  # Identical
+  if Prefs[field]=='Ignored':    Log.Info('[^] {}: {}'.format(''.format() if xml_field else field, destination))  # Ignored but text output given for checking behaviour without updating 
+  elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination))  # Identical
   else:
     
     # Plex update
     if local_value and (not plex_value or Prefs['metadata_source']=='local'):
-      Log.Info('Plex update')
-      
+      Log.Info('[@] Plex update {}: {}'.format(field, os.path.basename(destination)))
       if ext in ('jpg', 'mp3'):  UploadImagesToPlex(destination, ratingKey, 'poster' if 'poster' in field else 'art' if 'fanart' in field else field)
       if ext=='txt':
-        Log.Info("destination: '{}'".format(destination))
+        if DEBUG:  Log.Info("destination: '{}'".format(destination))
         r = HTTP.Request(PLEX_UPLOAD_TEXT.format(key, ratingKey, String.Quote(Core.storage.load(destination))), headers=HEADERS, method='PUT')
         Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
       if ext=='nfo' and metadata_field is not None:  #update nfo in mem
@@ -95,11 +88,12 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
           
     # Local update
     elif plex_value and (not local_value or Prefs['metadata_source']=='plex'):
-      Log.Info('Local update')
+      Log.Info('[@] Local update - {}: {}'.format(field, os.path.basename(destination)))
+      Log.Info('plex_value: "{}", local_value: "{}"'.format(plex_value, local_value))
       
       #jpg mp3
-      if ext in ('jpg', 'mp3'):  
-        Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
+      if ext in ('jpg', 'mp3', 'txt'):  
+        if DEBUG:  Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
         if not os.path.exists(os.path.dirname(destination)):  os.makedirs(os.path.dirname(destination))
         try:                                                  Core.storage.save(destination, plex_value)
         except Exception as e:                                Log.Info('Exception: "{}"'.format(e))
@@ -582,15 +576,17 @@ def Update(metadata, media, lang, force, agent_type):
   count, total = 0, 0
   while collections and (count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]):
     try:
-      
+      Log.Info('PLEX_URL_COLLECT')
       PLEX_COLLECT_XML, count, total = xml_from_url_paging_load(PLEX_URL_COLLECT, library_key, count, WINDOW_SIZE[agent_type])
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         if directory.get('title') in collections:
-          Log.Debug("[ ] Directory: '{}'".format( directory.get('title') ))
-          dirname = os.path.join(library_path if Prefs['collection_folder']=='local' else AgentDataFolder, '_Collections', directory.get('title'))
+          dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', directory.get('title'))
+          Log.Info(''.ljust(157, '-'))
+          Log.Info('[ ] Collection: "{}", path: "{}"'.format( directory.get('title'), dirname ))
           SaveFile(directory.get('thumb'  ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(directory.get('art'    ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(directory.get('summary'), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
+          #SaveFile(video.get('originallyAvailableAt'),  os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='aired',     metadata_field=metadata.seasons[season].episodes[episode].originally_available_at,  agent_type=agent_type, dynamic_name=filenoext)
           #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
           #directory.get('ratingKey')
           #directory.get('contentRating')
@@ -598,8 +594,10 @@ def Update(metadata, media, lang, force, agent_type):
           #directory.get('addedAt')
           #directory.get('updatedAt')
           #directory.get('childCount')
+  
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
-
+  Log.Info(''.ljust(157, '-'))
+  
   ### Save NFOs if different from local copy or file didn't exist ###
   Log.Info('NFO files')
   for nfo in NFOs:
