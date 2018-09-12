@@ -33,12 +33,13 @@ If you ask for something already answered in the readme, please donate (will be 
 
 ### History
 Commissionned by rbeatse on the forum post: https://forums.plex.tv/t/looking-for-a-developer-to-make-an-app/274692
+I took on the challenge and started coding.
 
 The aim is to replace with this double agent (import export):
 - https://github.com/joshuaavalon/AvalonXmlAgent.bundle Avalon XML agent
 - https://github.com/gboudreau/XBMCnfoTVImporter.bundle XBMC nfo TV Importer
 - https://github.com/gboudreau/XBMCnfoMoviesImporter.bundle XBMC ndo Movies Importer
-I took on the challenge and started coding.
+
  
 ### Donation link:
 [PayPal.Me/ZeroQI](https://PayPal.Me/ZeroQI) or better [Donation link](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=S8CUKCX4CWBBG&lc=IE&item_name=ZeroQI&item_number=Local%20Media%20Export%20Agent&currency_code=EUR&bn=PP%2dDonationsBF%3abtn_donateCC_LG%2egif%3aNonHosted)
