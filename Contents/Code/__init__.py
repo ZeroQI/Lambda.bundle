@@ -651,11 +651,12 @@ def Update(metadata, media, lang, force, agent_type):
     
   ### Collection loop for collection poster, fanart, summary ##################################################################################################
   Log.Info(''.ljust(157, '-'))
-  Log.Info('Collections - PLEX_URL_COLLECT paging load')
+  Log.Info('Collections {} - PLEX_URL_COLLECT paging load'.format(collections))
   count, total = 0, 0
-  while collections and (count==0 or count<total and int(PLEX_COLLECT_XML.get('size')) == WINDOW_SIZE[agent_type]):
+  while collections and (count==0 or count<total):
     try:
       PLEX_COLLECT_XML, count, total = xml_from_url_paging_load(PLEX_URL_COLLECT, library_key, count, WINDOW_SIZE[agent_type])
+      Log.Info("count: {}, total: {}".format(count, total))
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         if directory.get('title') in collections:
           dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', directory.get('title'))
