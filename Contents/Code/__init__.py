@@ -49,7 +49,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       - SaveFile(show.get('theme'), path, 'series_themes')
       - SaveFile(show.get('title'), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='title', metadata_field=metadata.title)
   '''
-  Log.Info('SaveFile("{}", "{}", "{}", "{}"...) Prefs[field]: "{}"'.format(thumb, path, field, Prefs[field], xml_field))
+  Log.Info('SaveFile("{}", "{}", "{}", "{}"...) xml_field: "{}"'.format(thumb, path, field, Prefs[field], xml_field))
   if not thumb or not path or not field or Prefs[field]=='Ignored':  return  #Log.Info('return due to empy field')
   
   ext = file_extension(thumb)
@@ -73,7 +73,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   try:
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3', 'txt'): local_value = Core.storage.load(destination) if os.path.exists(destination) else ''
     elif ext=='nfo': 
-      if isinstance(field, dict): #NFO file with field a dict 
+      if isinstance(xml_field, dict): #NFO file with xml field a dict 
         Log.Info('[!] not implemented')
         local_value=''
       else:  #NFO with field a string
@@ -104,21 +104,22 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
          
     # Local update
     elif plex_value and (not local_value or Prefs['metadata_source']=='plex'):
-      Log.Info('[@] Local update - {}: {}'.format(field, os.path.basename(destination)))
+      
+      if  os.path.exists(os.path.dirname(destination)):  Log.Info('[@] Local update - {}: {} directory already exists'.format (field, os.path.basename(destination)))
+      else:  os.makedirs(os.path.dirname(destination));  Log.Info('[@] Local update - {}: {} directory needed creating'.format(field, os.path.basename(destination)))
       
       if ext in ('jpg', 'mp3', 'txt'):  
         if DEBUG:  Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
-        if not os.path.exists(os.path.dirname(destination)):  os.makedirs(os.path.dirname(destination))
         try:                                                  Core.storage.save(destination, plex_value)
         except Exception as e:                                Log.Info('Exception: "{}"'.format(e))
       
       elif ext=='nfo':
         Log.Info('1')
-        if isinstance(field, dict): #NFO file with field a dict 
+        if isinstance(xml_field, dict): #NFO file with field a dict 
           Log.Info('[!] not implemented')
           #replace '{}' in field value with thumb? 
-          while field!={}:
-            for key, value in field.items():  #iterate over a copy otherwise can't change dict while iterating
+          while xml_field!={}:
+            for key, value in xml_field.items():  #iterate over a copy otherwise can't change dict while iterating
               nested_tags={}
               for nested_key, nested_value in value.items() if isinstance(value, dict) else {}:  
                 if isinstance(nested_value, dict):  SaveDict(value.pop(nested_key), nested_tags, nested_key)    #remove nested tags
@@ -132,9 +133,11 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
                 for x, y in value.items():  element.set(x, y) #Merge both, loop tags+attributes, add attributes to tag
                 
               if nested_tags:
-                nfo_xml = element 
-                field   = nested_tags
-        
+                nfo_xml   = element 
+                xml_field = nested_tags
+              else:
+                xml_field={}
+              
         else:  #NFO with field a string
           tag = nfo_xml.find (".//"+field)
           if tag:  #xml tag already present
@@ -659,16 +662,19 @@ def Update(metadata, media, lang, force, agent_type):
           rated   = ('Rated '+directory.get('contentRating')) if directory.get('contentRating') else ''
           Log.Info(''.ljust(157, '-'))
           Log.Info('[ ] Collection: "{}", path: "{}"'.format( directory.get('title'), dirname ))
-          SaveFile(directory.get('thumb'  ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          SaveFile(directory.get('art'    ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          SaveFile(directory.get('summary'), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          #Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
-          #SaveFile(directory.get('summary')   , dirname, 'collection_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='plot',       metadata_field=None)
-          #SaveFile(rated                      , dirname, 'collection_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='mpaa',       metadata_field=None)
-          #SaveFile(directory.get('addedAt'   ), dirname, 'collection_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='dateadded',  metadata_field=None)
-          #SaveFile(directory.get('childCount'), dirname, 'collection_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='childcount', metadata_field=None)
-          #SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='minyear',    metadata_field=None)
-          #SaveFile(directory.get('maxYear'   ), dirname, 'collection_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='maxyear',    metadata_field=None)
+          SaveFile(directory.get('thumb'     ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
+          SaveFile(directory.get('art'       ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
+          SaveFile(directory.get('summary'   ), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
+          
+          nfo_load(NFOs, dirname, 'collection_nfo')
+          SaveFile(directory.get('summary'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field={'plot': {lang:{'text':directory.get('summary')}}},       metadata_field=None)
+          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='mpaa',       metadata_field=None)
+          SaveFile(directory.get('addedAt'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='dateadded',  metadata_field=None)
+          SaveFile(directory.get('childCount'), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='childcount', metadata_field=None)
+          SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='minyear',    metadata_field=None)
+          SaveFile(directory.get('maxYear'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='maxyear',    metadata_field=None)
+          
+          Log.Info(XML.StringFromElement(directory))
           
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info(''.ljust(157, '-'))
@@ -731,6 +737,6 @@ WINDOW_SIZE      = {'movie': 30, 'show': 20, 'artist': 10, 'album': 10}
 TIMEOUT          = 30
 HTTP.CacheTime   = 0
 HEADERS          = {}
-nfo_root_tag     = {'movies_nfo': 'movie', 'series_nfo': 'tvshow', 'album_nfo': 'album', 'artist_nfo':'artist_nfo', 'episode_nfo':'episodedetails'} #top level parent tag
+nfo_root_tag     = {'movies_nfo': 'movie', 'series_nfo': 'tvshow', 'album_nfo': 'album', 'artist_nfo':'artist_nfo', 'episode_nfo':'episodedetails', 'collection_nfo':'collection'} #top level parent tag
 HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
 HTTP.Headers['Accept-Language'] = 'en-us'
