@@ -42,7 +42,7 @@
   
   <!-- This key is used to show that the plugin is an agent. possible values are agent -->	
   <key>PlexPluginClass</key>
-  <string>agent</string>
+  <string>Agent</string>
 
   <!-- This is used to send plugin log statements directly to stout when running PMS from the command line. Rarely used anymore-->
   <key>PlexPluginConsoleLogging</key>
