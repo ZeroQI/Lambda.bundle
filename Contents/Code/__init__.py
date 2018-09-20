@@ -182,37 +182,6 @@ def SaveDict(value, var, *arg):
 ### import var 2 dict into var and returns it
 def UpdateDict(var, var2):  var.update(var2);  return var
 
-def xml_append(nfo_xml, attributes={}, mode=''):
-  ''' test for inclusion in SaveFile
-      
-      Append to the main tag in the xml the xml structure given in dict
-      - each dict key is a tag if it contain a dict
-      - text is an attribute called text
-      xml_append(xml=NFOs['series_nfo']['xml'], attributes={'ratings': {'rating': {name:"", max:"10", default:"",'value':{''}, 'votes':{''}}}})
-      {'ratings': {'rating': {name:"", max:"10", default:"",'value':{''}, 'votes':{''}}}}
-      <ratings>
-        <rating name="" max="10" default="">
-          <value></value>
-          <votes></votes>
-        </rating>
-      <ratings>
-  '''
-  for key, value in attributes.items():  #iterate over a copy otherwise can't change dict while iterating
-    nested_tags={}
-    for nested_key, nested_value in value.items() if isinstance(value, dict) else {}:  
-      if isinstance(nested_value, dict):  SaveDict(value.pop(nested_key), nested_tags, nested_key)    #remove nested tags
-    Log.Info('xml tag: "{}", attributes: "{}"'.format(key, value))
-    element = nfo_xml.find('.//'+key)      # new element
-    if element is None:                    # tag not in xml
-      element = XML.Element(key, **value)  # new element, 'name' attribute reserved, otherwise: Element() got multiple values for keyword argument 'name' 
-      nfo_xml.append(element)              # append new tag single element
-    else:                                  # tag already in xml
-      #element = XML.Element(key, **value)
-      # 
-      for x, y in value.items():  element.set(x, y) #Merge both, loop tags+attributes, add attributes to tag
-      
-    if nested_tags:  xml_append(nfo_xml=element, attributes=nested_tags)  #recursive calls to nested tags
-
 def UploadImagesToPlex(url_list, ratingKey, image_type):
   ''' URL uploader for field not in metadata like collections
   
@@ -256,7 +225,7 @@ def nfo_load(NFOs, path, field, filenoext=''):
           - xml:   local nfo xml object that will be updated in memory   Ex: NFOs['artist.nfo']['xml'  ]
           - local: copy of local nfo xml object for comparison           Ex: NFOs['artist.nfo']['local']
   '''
-  Log.Info('nfo_load("{}", "{}", "{}")'.format(str(NFOs)[:20]+'...', path, field))
+  #Log.Info('nfo_load("{}", "{}", "{}")'.format(str(NFOs)[:20]+'...', path, field))
   nfo_file = os.path.join(path, Prefs[ field ])
   if '{}' in nfo_file:
     if filenoext=='':  Log.Info('alert - need to add filenoext to nfo_load to replace "{}" in agent setting filename: '+field)
@@ -265,8 +234,11 @@ def nfo_load(NFOs, path, field, filenoext=''):
   if Prefs[ field ]=='Ignored' and not DEBUG:  nfo_xml = None
   elif os.path.exists(nfo_file):               nfo_xml = XML.ObjectFromString(Core.storage.load(nfo_file))
   else:                                        nfo_xml = XML.Element(nfo_root_tag[field], xsd="http://www.w3.org/2001/XMLSchema", xsi="http://www.w3.org/2001/XMLSchema-instance", text=None)
-  NFOs[field] = {'path': os.path.join(path, nfo_file), 'xml': nfo_xml, 'local': copy.deepcopy(nfo_xml)}
+  Log.Info('nfo_load 2')
+  NFOs[nfo_file] = {'path': os.path.join(path, nfo_file), 'xml': nfo_xml, 'local': copy.deepcopy(nfo_xml)}
+  Log.Info('nfo_load 3')
   if DEBUG:  Log.Info('nfo_xml: {}'.format(XML.StringFromElement(nfo_xml)))
+  return NFOs[nfo_file]['xml']
   
 def SetRating(key, rating):
   ''' Called when changing rating in Plex interface
@@ -427,7 +399,6 @@ def Update(metadata, media, lang, force, agent_type):
   if agent_type=='show':
 
     #Load nfo file if present
-    nfo_load(NFOs, path,  'series_nfo')
     
     ### PLEX_URL_TVSHOWS
     count, total = 0, 0
@@ -436,9 +407,6 @@ def Update(metadata, media, lang, force, agent_type):
         PLEX_TVSHOWS_XML, count, total = xml_from_url_paging_load(PLEX_URL_TVSHOWS, library_key, count, WINDOW_SIZE[agent_type])
         for show in PLEX_TVSHOWS_XML.iterchildren('Directory'):
           if media.title==show.get('title'):   
-            duration = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
-            rated      = ('Rated '+show.get('contentRating')) if show.get('contentRating') else ''
-            date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(show.get('addedAt'))))
             Log.Info('title:                 {}'.format(show.get('title')))
             if show.get('ratingKey'):  parentRatingKey = show.get('ratingKey')
             
@@ -447,19 +415,25 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(show.get('art'                  ), path, 'series_fanart')
             SaveFile(show.get('banner'               ), path, 'series_banner')
             SaveFile(show.get('theme'                ), path, 'series_themes')
-            SaveFile(show.get('title'                ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='title'        , metadata_field=metadata.title                  )
-            SaveFile(show.get('originalTitle'        ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='originaltitle', metadata_field=metadata.title                  )
-            SaveFile(show.get('summary'              ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='plot'         , metadata_field=metadata.original_title         )
-            SaveFile(rated                            , path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='mpaa'         , metadata_field=metadata.summary                )
-            SaveFile(show.get('studio'               ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='studio'       , metadata_field=metadata.studio                 )
-            SaveFile(show.get('rating'               ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='rating'       , metadata_field=metadata.rating                 )
-            SaveFile(show.get('year'                 ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='year'         , metadata_field=metadata.rating                 )
-            SaveFile(duration                         , path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='runtime'      , metadata_field=metadata.duration               )
-            SaveFile(show.get('originallyAvailableAt'), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='aired'        , metadata_field=metadata.originally_available_at)
-            SaveFile(show.get('tagline'              ), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='tagline'      , metadata_field=None                            )
-            SaveFile(date_added                       , path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='dateadded'    , metadata_field=None                            )
-            for tag in show.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='tag',   metadata_field=metadata.collections);  collections.append(tag.get('tag')); 
-            for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='genre', metadata_field=metadata.genres)
+            
+            #Series NFO
+            rated      = ('Rated '+show.get('contentRating')) if show.get('contentRating') else ''
+            duration   = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
+            date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(show.get('addedAt'))))
+            nfo_xml = nfo_load(NFOs, path,  'series_nfo')
+            SaveFile(show.get('title'                ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='title'        , metadata_field=metadata.title                  )
+            SaveFile(show.get('originalTitle'        ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='originaltitle', metadata_field=metadata.title                  )
+            SaveFile(show.get('summary'              ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='plot'         , metadata_field=metadata.original_title         )
+            SaveFile(show.get('studio'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='studio'       , metadata_field=metadata.studio                 )
+            SaveFile(show.get('rating'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='rating'       , metadata_field=metadata.rating                 )
+            SaveFile(show.get('year'                 ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='year'         , metadata_field=metadata.rating                 )
+            SaveFile(show.get('originallyAvailableAt'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='aired'        , metadata_field=metadata.originally_available_at)
+            SaveFile(show.get('tagline'              ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tagline'      , metadata_field=None                            )
+            SaveFile(duration                         , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='runtime'      , metadata_field=metadata.duration               )
+            SaveFile(rated                            , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='mpaa'         , metadata_field=metadata.summary                )
+            SaveFile(date_added                       , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='dateadded'    , metadata_field=None                            )
+            for tag in show.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections);  collections.append(tag.get('tag')); 
+            for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres)
             #for tag in show.iterchildren('Role'      ):  Log.Info('role:                  {}'.format(tag.get('tag')))
             ##<tag>BestTag</tag>
             Log.Info('collection:            {}'.format(collections))  
@@ -476,82 +450,65 @@ def Update(metadata, media, lang, force, agent_type):
       try:
         PLEX_XML_SEASONS, count, total = xml_from_url_paging_load(PLEX_URL_SEASONS, library_key, count, WINDOW_SIZE[agent_type])
         for show in PLEX_XML_SEASONS.iterchildren('Directory') or []:
-          if parentRatingKey == show.get('parentRatingKey'):  #parentTitle
-            #Log.Info(XML.StringFromElement(show))
+          if parentRatingKey == show.get('parentRatingKey'):
             if show.get('title'):  Log.Info('[ ] title:               {}'.format(show.get('title')))
-            season = show.get('title')[6:].strip()
+            season = show.get('title')[6:].strip() if show.get('title').startswith('Season') else '0'
             for episode in media.seasons[season].episodes:
               season_folder = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)[0]
               SaveFile(show.get('thumb' ), season_folder, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else season.zfill(2) if show.get('title') else '') #SeasonXX
               SaveFile(show.get('art'   ), season_folder, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else season.zfill(2) if show.get('title') else '') #SeasonXX)
               break
+            if DEBUG:  Log.Info(XML.StringFromElement(show))
       except Exception as e:  Log.Info("PLEX_URL_SEASONS - Exception: '{}'".format(e));  #raise
       
     ### Episode thumbs list
     if Prefs['episode_thumbs']!='Ignore':
-      episodes={}
-      for season in sorted(media.seasons, key=natural_sort_key):
-        for episode in sorted(media.seasons[season].episodes, key=natural_sort_key):
-          episodes[media.seasons[season].episodes[episode].items[0].parts[0].file] = (season, episode)
       
-      ### PLEX_URL_EPISODE - TV Shows###
       count, total = 0, 0
-      while count==0 or count<total and episodes:
+      while count==0 or count<total:
         try:
           PLEX_XML_EPISODE, count, total = xml_from_url_paging_load(PLEX_URL_EPISODE, library_key, count, WINDOW_SIZE[agent_type])
           for video in PLEX_XML_EPISODE.iterchildren('Video'):
-            for part in video.iterdescendants('Part'):
-              if part.get('file') in episodes:
-                season, episode  = episodes[part.get('file')]
-                filenoext        = '.'.join(os.path.basename(part.get('file')).split('.')[:-1])
-                #return file[1:] if file.count('.') == 1 and file.startswith('.') else file.lower().split('.')[-1]
-                Log.Info('filenoext: "{}"'.format(filenoext))
-                Log.Info('[{}]'.format(video.get('type')))
-                Log.Info('[ ] grandparent Key / RatingKey / Thumb / Art / Title: {}, {}, {:<39}, {:<39}, {}'.format(video.get('grandparentKey'), video.get('grandparentRatingKey'), video.get('grandparentThumb'), video.get('grandparentArt'), video.get('grandparentTitle')))
-                Log.Info('[ ]      parent Key / RatingKey / Thumb / Art / Title: {}, {}, {:<39}, {:<39}, {}'.format(video.get(     'parentKey'), video.get(     'parentRatingKey'), video.get(     'parentThumb'), video.get(     'parentArt'), video.get(     'parentTitle')))
-                Log.Info('[ ]             key / ratingKey / thumb / art / title: {}, {}, {:<39}, {:<39}. {}'.format(video.get(           'key'), video.get(           'ratingKey'), video.get(           'thumb'), video.get(           'art'), video.get(           'title')))
-                Log.Info('[ ] file:                  {}'.format(video.get('file'                 )))
-                Log.Info('[ ] year:                  {}'.format(video.get('year'                 )))
-                Log.Info('[ ]             updatedAt: {}'.format(video.get(            'updatedAt')))
-                Log.Info('[ ] id:                    {}'.format( part.get('id'     )))
-                Log.Info('[ ] key:                   {}'.format( part.get('key'    )))
-                Log.Info('[ ] file:                  {}'.format( part.get('file'   )))
-                del episodes[part.get('file')]  #.pop('key', None)
+            if parentRatingKey == video.get('grandparentRatingKey'):
+              #Log.Info('[{}]'.format(video.get('type')))
+              #Log.Info('[ ] grandparent Key / RatingKey / Thumb / Art / Title: {}, {}, {:<39}, {:<39}, {}'.format(video.get('grandparentKey'), video.get('grandparentRatingKey'), video.get('grandparentThumb'), video.get('grandparentArt'), video.get('grandparentTitle')))
+              #Log.Info('[ ]      parent Key / RatingKey / Thumb / Art / Title: {}, {}, {:<39}, {:<39}, {}'.format(video.get(     'parentKey'), video.get(     'parentRatingKey'), video.get(     'parentThumb'), video.get(     'parentArt'), video.get(     'parentTitle')))
+              #Log.Info('[ ]             key / ratingKey / thumb / art / title: {}, {}, {:<39}, {:<39}. {}'.format(video.get(           'key'), video.get(           'ratingKey'), video.get(           'thumb'), video.get(           'art'), video.get(           'title')))
+              
+              for part in video.iterdescendants('Part'):
                 dirname, filename = os.path.split(part.get('file'))
-                
-                SaveFile(video.get('thumb'                ), dirname,                           'episode_thumbs', dynamic_name=os.path.splitext(filename)[0])
-                
-                nfo_load(NFOs, dirname, 'episode_nfo', filenoext)
-                #SaveFile(video.get('thumb'                ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='thumb',      metadata_field=metadata.seasons[season].episodes[episode].thumbs,                  dynamic_name=filenoext)
-                SaveFile(video.get('title'                ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='title',           metadata_field=metadata.seasons[season].episodes[episode].title,                    dynamic_name=filenoext)
-                SaveFile(video.get('summary'              ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='plot',            metadata_field=metadata.seasons[season].episodes[episode].summary,                  dynamic_name=filenoext)
-                SaveFile(video.get('originallyAvailableAt'), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='aired',           metadata_field=metadata.seasons[season].episodes[episode].originally_available_at,  dynamic_name=filenoext)
-                #?# SaveFile(video.get('rating'               ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='aired',           metadata_field=metadata.seasons[season].episodes[episode].originally_available_at,  dynamic_name=filenoext)
-                SaveFile(video.get('grandparentTitle'     ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='showtitle',       metadata_field=None)
-                SaveFile(video.get('year'                 ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='year',            metadata_field=None)
-                SaveFile(video.get('addedAt'              ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='dateadded',       metadata_field=None)
-                SaveFile(season                            , os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='season',          metadata_field=None)
-                SaveFile(episode                           , os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='episode',         metadata_field=None)
-                SaveFile(filename                          , os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='file',            metadata_field=None)
-                SaveFile(dirname                           , os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='path',            metadata_field=None)
-                SaveFile(part.get('file')                  , os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='filenameandpath', metadata_field=None)
-                SaveFile(path                              , os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='basepath',        metadata_field=None)
-                for tag in video.iterdescendants('Director'):  SaveFile(tag.get('tag'),  os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='director',     metadata_field=metadata.seasons[season].episodes[episode].directors,  dynamic_name=filenoext);  break
-                for tag in video.iterdescendants('Writer'  ):  SaveFile(tag.get('tag'),  os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='credits',     metadata_field=metadata.seasons[season].episodes[episode].writers,     dynamic_name=filenoext)
+                filenoext         = '.'.join(filename.split('.')[:-1])
+                Log.Info('[ ] filenoext: "{}"'.format(filenoext))
+                break
+               
+              #Episode thumb
+              SaveFile(video.get('thumb'                ), dirname,                           'episode_thumbs', dynamic_name=filenoext)
+              
+              #Episode NFO
+              season,  episode  = video.get('parentIndex'), video.get('index')
+              Log.Info('serie ratingKey: {}, season: {}, episode: {}'.format(video.get('grandparentRatingKey'), season,  episode))
+              nfo_xml = nfo_load(NFOs, dirname, 'episode_nfo', filenoext)
+              Log.Info('nfo_load 4')
+              SaveFile(video.get('thumb'                ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='thumb',           metadata_field=metadata.seasons[season].episodes[episode].thumbs,                   dynamic_name=filenoext)
+              SaveFile(video.get('title'                ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='title',           metadata_field=metadata.seasons[season].episodes[episode].title,                    dynamic_name=filenoext)
+              SaveFile(video.get('summary'              ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='plot',            metadata_field=metadata.seasons[season].episodes[episode].summary,                  dynamic_name=filenoext)
+              SaveFile(video.get('originallyAvailableAt'), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='aired',           metadata_field=metadata.seasons[season].episodes[episode].originally_available_at,  dynamic_name=filenoext)
+              SaveFile(video.get('grandparentTitle'     ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='showtitle',       metadata_field=None)
+              SaveFile(video.get('year'                 ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='year',            metadata_field=None)
+              SaveFile(video.get('addedAt'              ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='dateadded',       metadata_field=None)
+              SaveFile(season                            , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='season',          metadata_field=None)
+              SaveFile(episode                           , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='episode',         metadata_field=None)
+              SaveFile(filename                          , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='file',            metadata_field=None)
+              SaveFile(dirname                           , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='path',            metadata_field=None)
+              SaveFile(part.get('file')                  , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='filenameandpath', metadata_field=None)
+              SaveFile(path                              , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='basepath',        metadata_field=None)
+              for tag in video.iterdescendants('Director'):  SaveFile(tag.get('tag'),  dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='director',     metadata_field=metadata.seasons[season].episodes[episode].directors,  dynamic_name=filenoext);  break
+              for tag in video.iterdescendants('Writer'  ):  SaveFile(tag.get('tag'),  dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='credits',     metadata_field=metadata.seasons[season].episodes[episode].writers,     dynamic_name=filenoext)
+              #?# SaveFile(video.get('rating'               ), os.path.dirname(part.get('file')), 'episode_nfo', nfo_xml=NFOs['episode_nfo']['xml'], xml_field='aired',           metadata_field=metadata.seasons[season].episodes[episode].originally_available_at,  dynamic_name=filenoext)
+              
+              if DEBUG:  Log.Info(XML.StringFromElement(video))  #Un-comment for XML code displayed in logs
+              Log.Info(''.ljust(157, '-'))
                   
-                if DEBUG:  Log.Info(XML.StringFromElement(video))  #Un-comment for XML code displayed in logs
-                '''
-                  <actor>
-                    <name></name>
-                    <role></role>
-                    <order></order>
-                    <thumb></thumb>
-                  </actor>
-                  <art>
-                    <fanart></fanart>
-                    <poster></poster>
-                  </art>
-                '''
         except Exception as e:  Log.Info("PLEX_URL_EPISODE - Exception: '{}', count: {}, total: {}".format(e, count, total));  
     Log.Info('')
   
@@ -615,10 +572,8 @@ def Update(metadata, media, lang, force, agent_type):
       try:
         
         # Paging load of PLEX_URL_TRACK
-        PLEX_XML_TRACK = XML.ElementFromURL(PLEX_URL_TRACK.format(library_key, count, WINDOW_SIZE[agent_type]), timeout=float(TIMEOUT))
-        total = int(PLEX_XML_TRACK.get('totalSize'))
+        PLEX_XML_TRACK, count, total = xml_from_url_paging_load(PLEX_URL_TRACK, library_key, count, WINDOW_SIZE[agent_type])
         Log.Debug("PLEX_URL_TRACK [{}-{} of {}]".format(count+1, count+int(PLEX_XML_TRACK.get('size')) ,total))
-        count += WINDOW_SIZE[agent_type]
         #Log.Info(XML.StringFromElement(PLEX_XML_TRACK))  #Un-comment for XML code displayed in logs
         
         for track in PLEX_XML_TRACK.iterchildren('Track'):
@@ -660,20 +615,23 @@ def Update(metadata, media, lang, force, agent_type):
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         if directory.get('title') in collections:
           dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', directory.get('title'))
-          rated   = ('Rated '+directory.get('contentRating')) if directory.get('contentRating') else ''
           Log.Info(''.ljust(157, '-'))
           Log.Info('[ ] Collection: "{}", path: "{}"'.format( directory.get('title'), dirname ))
+          
+          #Collection file export
           SaveFile(directory.get('thumb'     ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(directory.get('art'       ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(directory.get('summary'   ), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
           
-          nfo_load(NFOs, dirname, 'collection_nfo')
-          SaveFile(directory.get('summary'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field={'plot': {lang:{'text':directory.get('summary')}}},       metadata_field=None)
-          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='mpaa',       metadata_field=None)
-          SaveFile(directory.get('addedAt'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='dateadded',  metadata_field=None)
-          SaveFile(directory.get('childCount'), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='childcount', metadata_field=None)
-          SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='minyear',    metadata_field=None)
-          SaveFile(directory.get('maxYear'   ), dirname, 'collection_nfo',    nfo_xml=NFOs['collection_nfo']['xml'], xml_field='maxyear',    metadata_field=None)
+          #Collection NFO
+          nfo_xml = nfo_load(NFOs, dirname, 'collection_nfo')
+          rated   = ('Rated '+directory.get('contentRating')) if directory.get('contentRating') else ''
+          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='mpaa',       metadata_field=None)
+          SaveFile(directory.get('summary'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'plot': {lang:{'text':directory.get('summary')}}},       metadata_field=None)
+          SaveFile(directory.get('addedAt'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='dateadded',  metadata_field=None)
+          SaveFile(directory.get('childCount'), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='childcount', metadata_field=None)
+          SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='minyear',    metadata_field=None)
+          SaveFile(directory.get('maxYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='maxyear',    metadata_field=None)
           
           Log.Info(XML.StringFromElement(directory))
           
@@ -682,16 +640,10 @@ def Update(metadata, media, lang, force, agent_type):
   
   ### Save NFOs if different from local copy or file didn't exist #############################################################################################
   Log.Info('NFO files')
-  for nfo in NFOs:
-    if Prefs[nfo]!='Ignored':
-      nfo_string_xml     = XML.StringFromElement(NFOs[nfo]['xml'  ], encoding='utf-8')
-      if nfo_string_xml == XML.StringFromElement(NFOs[nfo]['local'], encoding='utf-8'):  Log.Info('[=] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
-      else:                                                                              Log.Info('[X] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']));  Core.storage.save(NFOs[nfo]['path'], nfo_string_xml)
-    else:                                                                                Log.Info('[ ] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
-  
-    #xml test
-    #xml_append(NFOs['series_nfo']['xml'], {'test': {'test2': {'att3': '1', 'att2': '2'}}})
-    #Log.Info('xml: "{}"'.format(XML.StringFromElement(NFOs['series_nfo']['xml'])))
+  for nfo in sorted(NFOs, key=natural_sort_key):
+    nfo_string_xml     = XML.StringFromElement(NFOs[nfo]['xml'  ], encoding='utf-8')
+    if nfo_string_xml == XML.StringFromElement(NFOs[nfo]['local'], encoding='utf-8'):  Log.Info('[=] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
+    else:                    Core.storage.save(NFOs[nfo]['path' ], nfo_string_xml);    Log.Info('[X] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
 
 ### Agent declaration ################################################################################################################################
 class LambdaTV(Agent.TV_Shows):
@@ -716,7 +668,7 @@ class LambdaAlbum(Agent.Album):
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'album')
 
 ### Variables ########################################################################################################################################
-DEBUG            = False
+DEBUG            = True
 PlexRoot         = Core.app_support_path
 AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexapp.agents.lambda", "DataItems")
 PMS              = 'http://127.0.0.1:32400'  # Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
