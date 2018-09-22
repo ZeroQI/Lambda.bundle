@@ -353,17 +353,8 @@ def Update(metadata, media, lang, force, agent_type):
         for video in PLEX_XML_MOVIES.iterchildren('Video'):
           if media.title==video.get('title'):   
             Log.Info('title:                 {}'.format(video.get('title')))
-            filenoext = '.'.join(media.items[0].parts[0].file.split('.')[:-1])
-            
-            ### Poster, Fanart ###            
-            SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext)
-            SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext)
-            
-            ### NFO ###
+            filenoext  = '.'.join(media.items[0].parts[0].file.split('.')[:-1])
             nfo_xml    = nfo_load(NFOs, path, 'movies_nfo', filenoext=filenoext)
-            duration   = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
-            rated      = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
-            date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt'))))
             SaveFile(video.get('title'                ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='title',          metadata_field=metadata.title,                   dynamic_name=filenoext)
             SaveFile(video.get('originalTitle'        ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='originaltitle',  metadata_field=metadata.original_title,          dynamic_name=filenoext)
             SaveFile(video.get('tagline'              ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='tagline',        metadata_field=metadata.tagline,                 dynamic_name=filenoext)
@@ -371,19 +362,34 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(video.get('studio'               ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='studio',         metadata_field=metadata.studio,                  dynamic_name=filenoext)
             SaveFile(video.get('summary'              ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='plot',           metadata_field=metadata.summary,                 dynamic_name=filenoext)
             SaveFile(video.get('year'                 ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='year',           metadata_field=metadata.year,                    dynamic_name=filenoext)
-            SaveFile(duration                          , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='runtime',        metadata_field=metadata.duration,                dynamic_name=filenoext)
             SaveFile(video.get('originallyAvailableAt'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='aired',          metadata_field=metadata.originally_available_at, dynamic_name=filenoext)
-            SaveFile(rated                             , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='mpaa',           metadata_field=metadata.content_rating,          dynamic_name=filenoext)
             SaveFile(video.get('titleSort'            ), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='sorttitle',      metadata_field=None,                             dynamic_name=filenoext)
-            SaveFile(date_added                        , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='dateadded',      metadata_field=None,                             dynamic_name=filenoext)
             SaveFile(metadata.id                       , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='uniqueid',       metadata_field=None,                             dynamic_name=filenoext, tags={'type':"unknown", 'default':"true"})
-            for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=NFOs['movies_nfo']['xml'], xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext)
-            for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=NFOs['movies_nfo']['xml'], xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext)
-            for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=NFOs['movies_nfo']['xml'], xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext)
-            for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=NFOs['movies_nfo']['xml'], xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext)
+            
+            duration   = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
+            SaveFile(duration                          , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='runtime',        metadata_field=metadata.duration,                dynamic_name=filenoext)
+            
+            rated      = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
+            SaveFile(rated                             , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='mpaa',           metadata_field=metadata.content_rating,          dynamic_name=filenoext)
+            
+            date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt'))))
+            SaveFile(date_added                        , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='dateadded',      metadata_field=None,                             dynamic_name=filenoext)
+            
+            for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Collection'):  collections.append(tag.get('tag'))
             #for tag in video.iterchildren('Role'      ):  tag.get('tag')
-            Log.Info('collection:            {}'.format(collections))
+            #<set> <name></name> <overview></overview> </set>
+            
+            destination = SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext)
+            SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}}, metadata_field=None)
+            
+            destination = SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext)
+            SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}}, metadata_field=None)
+            
+            #Log.Info('collection:            {}'.format(collections))
             if DEBUG:  Log.Info(XML.StringFromElement(video))  #Un-comment for XML code displayed in logs
             break
         else:  continue
