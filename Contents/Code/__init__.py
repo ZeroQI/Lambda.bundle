@@ -622,6 +622,8 @@ def Update(metadata, media, lang, force, agent_type):
     try:
       PLEX_COLLECT_XML, count, total = xml_from_url_paging_load(PLEX_URL_COLLECT, library_key, count, WINDOW_SIZE[agent_type])
       Log.Info("count: {}, total: {}".format(count, total))
+      if DEBUG:  Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
+      
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         if directory.get('title') in collections:
           dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', directory.get('title'))
@@ -648,7 +650,8 @@ def Update(metadata, media, lang, force, agent_type):
           SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}}, metadata_field=None)
           
           if DEBUG:  Log.Info(XML.StringFromElement(directory))
-          
+        else:  Log.Info('[!] Collection not matching: "{}"'.format(directory.get('title')))
+        
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info(''.ljust(157, '-'))
   
