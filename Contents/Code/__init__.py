@@ -146,7 +146,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination))  # Identical
   
   # Plex update
-  elif local_value and (not plex_value or Prefs['metadata_source']=='local'):
+  elif local_value and (not plex_value or Prefs['metadata_source']=='local' and metadata_field is not None):
     Log.Info('[@] Plex update {}: {}, ratingKey: {}'.format(field, destination, ratingKey))
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3'):
       if ratingKey=='':  Log.Info('[!] Source code missing key and ratingKey to allow plex metadata update from local disk information')
@@ -159,7 +159,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
          
   # Local update
-  elif plex_value and (not local_value or Prefs['metadata_source']=='plex'):
+  elif plex_value and (not local_value or Prefs['metadata_source']=='plex' or Prefs['metadata_source']=='local' and metadata_field is None):
       
     if  os.path.exists(os.path.dirname(destination)):  Log.Info('[@] Local update - {}: {} directory already exists'.format (field, os.path.basename(destination)))
     else:  os.makedirs(os.path.dirname(destination));  Log.Info('[@] Local update - {}: {} directory needed creating'.format(field, os.path.basename(destination)))
@@ -427,21 +427,19 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(date_added                       , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='dateadded'    , metadata_field=None                            )
             
             for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True)
-            
             for tag in show.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
+            #for tag in show.iterchildren('Role'      ):  Log.Info('role:                  {}'.format(tag.get('tag')))
             Log.Info('collection:            {}'.format(collections))  
             
-            #for tag in show.iterchildren('Role'      ):  Log.Info('role:                  {}'.format(tag.get('tag')))
-            
-            destination = SaveFile(show.get('thumb'                ), path, 'series_poster')
-            SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}}, metadata_field=None)
-            
-            destination = SaveFile(show.get('art'                  ), path, 'series_fanart')
-            SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}}, metadata_field=None)
-            
-            destination = SaveFile(show.get('banner'               ), path, 'series_banner')
-            SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}}, metadata_field=None)
-            
+            if ratingKey in show.get('thumb'):
+              destination = SaveFile(show.get('thumb'                ), path, 'series_poster')
+              SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}}, metadata_field=None)
+            if ratingKey in show.get('art'):
+              destination = SaveFile(show.get('art'                  ), path, 'series_fanart')
+              SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}}, metadata_field=None)
+            if ratingKey in show.get('banner'):
+              destination = SaveFile(show.get('banner'               ), path, 'series_banner')
+              SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}}, metadata_field=None)
             SaveFile(show.get('theme'                ), path, 'series_themes')
             
             if DEBUG:  Log.Info(XML.StringFromElement(show))  #Un-comment for XML code displayed in logs
@@ -462,10 +460,10 @@ def Update(metadata, media, lang, force, agent_type):
             season = show.get('title')[6:].strip() if show.get('title').startswith('Season') else '0'
             for episode in media.seasons[season].episodes:
               season_folder = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)[0]
-              if show.get('thumb')!=show.get('parentThumb'):
+              if not ratingKey in show.get('thumb'):
                 destination = SaveFile(show.get('thumb'), season_folder, 'season_poster', dynamic_name='' if show.get('title')=='Specials' else season.zfill(2) if show.get('title') else '') #SeasonXX
                 SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art':{'season': {'num': season, 'poster': {'text': destination}}}}, metadata_field=None)
-              if show.get('art'  )!=show.get('parentArt'  ):
+              if not ratingKey in show.get('art'  ):
                 destination = SaveFile(show.get('art'   ), season_folder, 'season_fanart', dynamic_name='' if show.get('title')=='Specials' else season.zfill(2) if show.get('title') else '') #SeasonXX)
                 SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art':{'season': {'num': season, 'fanart': {'text': destination}}}}, metadata_field=None)
               break
@@ -617,7 +615,7 @@ def Update(metadata, media, lang, force, agent_type):
   ### Collection loop for collection poster, fanart, summary ##################################################################################################
   Log.Info(''.ljust(157, '-'))
   Log.Info('Collections {} - PLEX_URL_COLLECT paging load'.format(collections))
-  count, total = 0, 0
+  count, total, collection_list = 0, 0, []
   while collections and (count==0 or count<total):
     try:
       PLEX_COLLECT_XML, count, total = xml_from_url_paging_load(PLEX_URL_COLLECT, library_key, count, WINDOW_SIZE[agent_type])
@@ -625,13 +623,15 @@ def Update(metadata, media, lang, force, agent_type):
       if DEBUG:  Log.Info(XML.StringFromElement(PLEX_COLLECT_XML))
       
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
-        if directory.get('title') in collections:
-          dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', directory.get('title'))
+        title = directory.get('title')
+        if title in collections:
+          collections.remove(title)
+          dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', title)
           Log.Info(''.ljust(157, '-'))
-          Log.Info('[ ] Collection: "{}", path: "{}"'.format( directory.get('title'), dirname ))
+          Log.Info('[ ] Collection: "{}", path: "{}"'.format(title, dirname))
           
           nfo_xml = nfo_load(NFOs, dirname, 'collection_nfo')
-          SaveFile(media.title                , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='title',      metadata_field=None)
+          SaveFile(title                      , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='title',      metadata_field=None)
           SaveFile(directory.get('addedAt'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='dateadded',  metadata_field=None)
           SaveFile(directory.get('childCount'), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='childcount', metadata_field=None)
           SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='minyear',    metadata_field=None)
@@ -648,12 +648,14 @@ def Update(metadata, media, lang, force, agent_type):
           
           destination = SaveFile(directory.get('art'       ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
           SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}}, metadata_field=None)
-          
           if DEBUG:  Log.Info(XML.StringFromElement(directory))
-        else:  Log.Info('[!] Collection not matching: "{}"'.format(directory.get('title')))
-        
+        else:
+          collection_list.append(title)
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info(''.ljust(157, '-'))
+  for collection in collections:  #Collection warning if unlinked/was renammed
+    Logs.Info('[!] collection "{}" renamed in of the following: "{}". Please remove old collection tag and add new one'.format(collection, collection_list.keys()))
+    Log.Info(''.ljust(157, '-'))
   
   ### Save NFOs if different from local copy or file didn't exist #############################################################################################
   Log.Info('NFO files')
