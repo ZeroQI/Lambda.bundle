@@ -124,7 +124,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       if ext in ('jpg', 'mp3'):  plex_value = HTTP.Request(PMS+thumb).content #response.headers['content-length']
       else:                      plex_value = thumb #txt, nfo
     else:                        plex_value = ''  
-    if DEBUG:             Log.Info('[?] plex_value:  "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and plex_value else plex_value))
+    if DEBUG:             Log.Info('[?] plex_value:  "{}", type: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and plex_value!='' else plex_value, type(plex_value)))
   except Exception as e:  Log.Info('plex_value - Exception: "{}"'.format(e));  return
   
   ### local_value
@@ -133,13 +133,15 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3', 'txt'): local_value = Core.storage.load(destination) if os.path.exists(destination) else ''
     elif ext=='nfo': 
       if not isinstance(xml_field, dict): #NFO file with xml field a dict 
-        if multi:  tag = nfo_xml.xpath('//{}/{}[text()="{}"]'.format(nfo_root_tag[field], xml_field, thumb))
-        else:      tag = nfo_xml.find (".//"+xml_field)  #tag         = nfo_xml.xpath('//{}/{}'.format(nfo_root_tag[field], xml_field))  #Log.Info('tag: {}'.format(tag))
-        if tag:    local_value = tag[0].text             #xml_field_value=nfo_xml.find(xml_field).text if nfo and nfo_xml.find(xml_field) else ''  # get xml field
+        if multi:
+          tag = nfo_xml.xpath('.//{}[text()="{}"]'.format(xml_field, thumb));  Log.Info('[?] multi tag:"{}"'.format(tag))
+          if tag:    local_value = tag[0].text             #xml_field_value=nfo_xml.find(xml_field).text if nfo and nfo_xml.find(xml_field) else ''  # get xml field
+        else:      local_value = str(nfo_xml.find (".//"+xml_field)) #tag         = nfo_xml.xpath('//{}/{}'.format(nfo_root_tag[field], xml_field))  #Log.Info('tag: {}'.format(tag))
     else:
       local_value=''
       return
-    if DEBUG:             Log.Info('[?] local_value: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and local_value else local_value))
+    if DEBUG:             Log.Info('[?] local_value: "{}", type: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and local_value!='' else local_value, type(local_value)))
+  
   except Exception as e:  Log.Info('local_value - Exception: "{}"'.format(e));  return
  
   if   Prefs[field]=='Ignored':  Log.Info('[^] {}: {}'.format(''.format() if xml_field else field, destination))  # Ignored but text output given for checking behaviour without updating 
@@ -172,26 +174,31 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
     elif ext=='nfo':
       if isinstance(xml_field, dict): #NFO file with field a dict 
         #replace '{}' in field value with thumb? 
-        while xml_field!={}:
-          for key, value in xml_field.items():  #iterate over a copy otherwise can't change dict while iterating
-            nested_tags={}
-            for nested_key, nested_value in value.items() if isinstance(value, dict) else {}:  
-              if isinstance(nested_value, dict):  SaveDict(value.pop(nested_key), nested_tags, nested_key)    #remove nested tags
-            Log.Info('xml tag: "{}", attributes: "{}"'.format(key, value))
-            element = nfo_xml.find('.//'+key)      # new element
-            if element is None:                    # tag not in xml
-              element = XML.Element(key, **value)  # new element, 'name' attribute reserved, otherwise: Element() got multiple values for keyword argument 'name' 
-              nfo_xml.append(element)              # append new tag single element
-            else:                                  # tag already in xml
-              #element.clear()
-              for x, y in value.items():
-                if x=='text':  pass #element['text'] = y  #element.text attribute 'text' of 'StringElement' objects is not writable'  #._setText
-                else:          element.set(x, y)    #Merge both, loop tags+attributes, add attributes to tag
-            if nested_tags:
-              nfo_xml   = element 
-              xml_field = nested_tags
-            else:
-              xml_field={}
+        if multi:
+          pass
+          #check if already in
+          #if not there add it
+        else:
+          while xml_field!={}:
+            for key, value in xml_field.items():  #iterate over a copy otherwise can't change dict while iterating
+              nested_tags={}
+              for nested_key, nested_value in value.items() if isinstance(value, dict) else {}:  
+                if isinstance(nested_value, dict):  SaveDict(value.pop(nested_key), nested_tags, nested_key)    #remove nested tags
+              Log.Info('xml tag: "{}", attributes: "{}"'.format(key, value))
+              element = nfo_xml.find('.//'+key)      # new element
+              if element is None:  # or multi==True:                    # tag not in xml
+                element = XML.Element(key, **value)  # new element, 'name' attribute reserved, otherwise: Element() got multiple values for keyword argument 'name' 
+                nfo_xml.append(element)              # append new tag single element
+              else:                                  # tag already in xml
+                #element.clear()
+                for x, y in value.items():
+                  if x=='text':  pass #element['text'] = y  #element.text attribute 'text' of 'StringElement' objects is not writable'  #._setText
+                  else:          element.set(x, y)    #Merge both, loop tags+attributes, add attributes to tag
+              if nested_tags:
+                nfo_xml   = element 
+                xml_field = nested_tags
+              else:
+                xml_field={}
             
       else:  #NFO with field a string
         if multi:  tag = nfo_xml.xpath(field+'[text()="{}"]'.format(thumb))
@@ -400,8 +407,6 @@ def Update(metadata, media, lang, force, agent_type):
   ##### TV Shows (PLEX_URL_TVSHOWS) ###########################################################################################################################
   if agent_type=='show':
 
-    #Load nfo file if present
-    
     ### PLEX_URL_TVSHOWS
     count, total = 0, 0
     while count==0 or count<total:  #int(PLEX_TVSHOWS_XML.get('size')) == WINDOW_SIZE[agent_type] and
@@ -428,7 +433,6 @@ def Update(metadata, media, lang, force, agent_type):
             
             for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True)
             for tag in show.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
-            #for tag in show.iterchildren('Role'      ):  Log.Info('role:                  {}'.format(tag.get('tag')))
             Log.Info('collection:            {}'.format(collections))  
             
             if ratingKey in show.get('thumb'):
@@ -443,6 +447,19 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(show.get('theme'                ), path, 'series_themes')
             
             if DEBUG:  Log.Info(XML.StringFromElement(show))  #Un-comment for XML code displayed in logs
+            
+            #Advance information: viewedLeafCount, Location
+            xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
+            if xml is not None:
+              if DEBUG:  Log.Info(XML.StringFromElement(xml))  #Un-comment for XML code displayed in logs
+              for directory in xml.xpath('//MediaContainer/Directory'):
+                SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='path'     )
+                SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='basepath' )
+                SaveFile(directory.get('viewedLeafCount'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='playcount')
+                for role in directory.iterchildren('Role'):
+                  Log.Info('role: "{}"'.format(role.get('role')))
+                  SaveFile(role.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'NAME': {'text': role.get('tag')}, 'role': {'text': role.get('role')}, 'thumb': {'text': role.get('thumb')}}}, multi=True)
+            
             break
         else:  continue
         break      
@@ -496,7 +513,6 @@ def Update(metadata, media, lang, force, agent_type):
               season,  episode  = video.get('parentIndex'), video.get('index')
               Log.Info('serie ratingKey: {}, season: {}, episode: {}'.format(video.get('grandparentRatingKey'), season,  episode))
               nfo_xml = nfo_load(NFOs, dirname, 'episode_nfo', filenoext)
-              Log.Info('nfo_load 4')
               SaveFile(video.get('thumb'                ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='thumb',           metadata_field=metadata.seasons[season].episodes[episode].thumbs,                   dynamic_name=filenoext)
               SaveFile(video.get('title'                ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='title',           metadata_field=metadata.seasons[season].episodes[episode].title,                    dynamic_name=filenoext)
               SaveFile(video.get('summary'              ), dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='plot',            metadata_field=metadata.seasons[season].episodes[episode].summary,                  dynamic_name=filenoext)
@@ -624,7 +640,7 @@ def Update(metadata, media, lang, force, agent_type):
       
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         title = directory.get('title')
-        if title in collections:
+        if title in collections or title+' Collection' in collections:
           collections.remove(title)
           dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', title)
           Log.Info(''.ljust(157, '-'))
@@ -654,7 +670,7 @@ def Update(metadata, media, lang, force, agent_type):
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info(''.ljust(157, '-'))
   for collection in collections:  #Collection warning if unlinked/was renammed
-    Logs.Info('[!] collection "{}" renamed in of the following: "{}". Please remove old collection tag and add new one'.format(collection, collection_list.keys()))
+    Log.Info('[!] collection "{}" renamed in of the following: "{}". Please remove old collection tag and add new one'.format(collection, collection_list.keys()))
     Log.Info(''.ljust(157, '-'))
   
   ### Save NFOs if different from local copy or file didn't exist #############################################################################################
@@ -693,6 +709,7 @@ AgentDataFolder  = os.path.join(PlexRoot, "Plug-in Support", "Data", "com.plexap
 PMS              = 'http://127.0.0.1:32400'  # Since PMS is hardcoded to listen on 127.0.0.1:32400, that's all we need
 PMSLIB           = PMS + '/library'
 PMSSEC           = PMSLIB + '/sections'
+PMSMETA          = PMSLIB + '/metadata/{}'
 PAGING           = '&X-Plex-Container-Start={}&X-Plex-Container-Size={}'
 PLEX_URL_MOVIES  = PMSSEC + '/{}/all?type=1'  + PAGING
 PLEX_URL_TVSHOWS = PMSSEC + '/{}/all?type=2'  + PAGING
@@ -712,3 +729,20 @@ HEADERS          = {}
 nfo_root_tag     = {'movies_nfo': 'movie', 'series_nfo': 'tvshow', 'album_nfo': 'album', 'artist_nfo':'artist_nfo', 'episode_nfo':'episodedetails', 'collection_nfo':'collection'} #top level parent tag
 HTTP.Headers['User-Agent'     ] = 'Mozilla/5.0 (iPad; CPU OS 7_0_4 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11B554a Safari/9537.54'
 HTTP.Headers['Accept-Language'] = 'en-us'
+
+'''
+https://support.plex.tv/articles/201638786-plex-media-server-url-commands/
+Type database
+
+ # | type             
+---|-----------------
+ 0 | Library settings 
+ 1 | movies           
+ 2 | show              
+ 3 | season            
+ 4 | episode         
+ 8 | artist          
+ 9 | album          
+10 |                  
+18 | collections      
+'''
