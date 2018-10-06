@@ -716,13 +716,12 @@ def Update(metadata, media, lang, force, agent_type):
     Log.Info('[!] collection "{}" renamed in of the following: "{}". Please remove old collection tag and add new one'.format(collection, collection_list))
     Log.Info(''.ljust(157, '-'))
   
-  ### Save NFOs if different from local copy or file didn't exist #############################################################################################
-  Log.Info('NFO files')
-  for nfo in sorted(NFOs, key=natural_sort_key):
+  ### S  sorted(NFOs, key=natural_sort_key):
     nfo_string_xml     = XML.StringFromElement(NFOs[nfo]['xml'  ], encoding='utf-8')
     if nfo_string_xml == XML.StringFromElement(NFOs[nfo]['local'], encoding='utf-8'):  Log.Info('[=] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
+    elif NFOs[nfo]['path'].endswith('Ignored'):                                        Log.Info('[ ] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
     else:                    Core.storage.save(NFOs[nfo]['path' ], nfo_string_xml);    Log.Info('[X] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))  #NFOs[nfo]['xml'].write(NFOs[nfo]['path' ])
-
+    
 ### Agent declaration ################################################################################################################################
 class LambdaTV(Agent.TV_Shows):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
