@@ -55,7 +55,7 @@ def natural_sort_key(s):
     - In-place list sorting:  list.sort(key=natural_sort_key)
     - Return list copy:    sorted(list, key=natural_sort_key)
   '''
-  return [ int(text) if text.isdigit() else text for text in re.split( re.compile('([0-9]+)'), str(s).lower() ) ]
+  return [ int(text) if text is not None and text.isdigit() else text for text in re.split( re.compile('([0-9]+)'), str(s).lower() ) ]
 
 def file_extension(file):
   ''' return file extension, and if starting with single dot in filename, equals what's after the dot 
@@ -402,7 +402,7 @@ def Update(metadata, media, lang, force, agent_type):
             #NFO
             collections = [tag.get('tag') for tag in video.iterchildren('Collection')]
             roles       = [tag.get('tag') for tag in video.iterchildren('Role'      )]  
-            duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
+            duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration') is not None and video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated       = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
             date_added  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt'))))
             
@@ -456,7 +456,7 @@ def Update(metadata, media, lang, force, agent_type):
             #NFOs
             ratingKey  = show.get('ratingKey')                                  #Used in season and ep sections below
             roles      = [tag.get('tag') for tag in show.iterchildren('Role')]  #Used in Advance information: viewedLeafCount, Location, Roles
-            duration   = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
+            duration   = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration') is not None and show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated      = ('Rated '+show.get('contentRating')) if show.get('contentRating') else ''
             date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(show.get('addedAt'))))
             
@@ -475,9 +475,9 @@ def Update(metadata, media, lang, force, agent_type):
             
             #Pictures, theme song
             SaveFile(show.get('theme'                ), path, 'series_themes')
-            if ratingKey in show.get('thumb' ):  destination = SaveFile(show.get('thumb' ), path, 'series_poster');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}})
-            if ratingKey in show.get('art'   ):  destination = SaveFile(show.get('art'   ), path, 'series_fanart');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}})
-            if ratingKey in show.get('banner'):  destination = SaveFile(show.get('banner'), path, 'series_banner');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}})
+            if ratingKey in (show.get('thumb' ) or []):  destination = SaveFile(show.get('thumb' ), path, 'series_poster');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}})
+            if ratingKey in (show.get('art'   ) or []):  destination = SaveFile(show.get('art'   ), path, 'series_fanart');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}})
+            if ratingKey in (show.get('banner') or []):  destination = SaveFile(show.get('banner'), path, 'series_banner');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}})
             
             #Multi tags
             for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True)
@@ -519,7 +519,7 @@ def Update(metadata, media, lang, force, agent_type):
         for show in PLEX_XML_SEASONS.iterchildren('Directory') or []:
           if ratingKey == show.get('parentRatingKey'):
             if show.get('title'):  Log.Info('[ ] title:               {}'.format(show.get('title')))
-            season = show.get('title')[6:].strip() if show.get('title').startswith('Season') else '0'
+            season = show.get('title')[6:].strip() if show.get('title') is not None and show.get('title').startswith('Season') else '0'
             for episode in media.seasons[season].episodes:
               season_folder = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)[0]
               if not ratingKey in show.get('thumb'):  
