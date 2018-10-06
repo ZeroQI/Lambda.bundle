@@ -10,6 +10,7 @@ import hashlib                        # md5
 import copy                           # deepcopy
 from   io   import open    as open    # open
 from   lxml import etree   as ET
+from   lxml import objectify
 
 ### Functions ########################################################################################################################################
 def Dict(var, *arg, **kwarg):
@@ -77,7 +78,6 @@ def nfo_load(NFOs, path, field, filenoext=''):
           - xml:   local nfo xml object that will be updated in memory   Ex: NFOs['artist.nfo']['xml'  ]
           - local: copy of local nfo xml object for comparison           Ex: NFOs['artist.nfo']['local']
   '''
-  #Log.Info('nfo_load("{}", "{}", "{}")'.format(str(NFOs)[:20]+'...', path, field))
   nfo_file = os.path.join(path, Prefs[ field ])
   if '{}' in nfo_file:
     if filenoext=='':  Log.Info('alert - need to add filenoext to nfo_load to replace "{}" in agent setting filename: '+field)
@@ -87,14 +87,12 @@ def nfo_load(NFOs, path, field, filenoext=''):
   elif os.path.exists(nfo_file):               nfo_xml = XML.ObjectFromString(Core.storage.load(nfo_file))
   else:                                        nfo_xml = XML.Element(nfo_root_tag[field], xsd="http://www.w3.org/2001/XMLSchema", xsi="http://www.w3.org/2001/XMLSchema-instance", text=None)
   NFOs[nfo_file] = {'path': os.path.join(path, nfo_file), 'xml': nfo_xml, 'local': copy.deepcopy(nfo_xml)}
-  #if DEBUG:  Log.Info('nfo_xml: {}'.format(XML.StringFromElement(nfo_xml)))
   return NFOs[nfo_file]['xml']
 
 def xml_import(xml, xml_tags, root, multi=False, thumb='', tag_multi=''):
-  #xml_field_before = copy.deepcopy(xml_field)
+  Log.Info('xml_import() - xml_tags: {}, root: {}, multi: {}, thumb: {}'.format(xml_tags, root, multi, thumb))
   
   #Loop tags (key) and values (attributes/nested tags)
-  Log.Info('xml_import() - xml_tags: {}, root: {}, multi: {}, thumb: {}'.format(xml_tags, root, multi, thumb))
   for key, value in xml_tags.items() if isinstance(xml_tags, dict) else {xml_tags: {'text':thumb}}.items():  #iterate over a copy otherwise can't change dict while iterating
     
     # Move impricated dict to nested_tags so it only keeps XML tag attributes
@@ -115,17 +113,40 @@ def xml_import(xml, xml_tags, root, multi=False, thumb='', tag_multi=''):
       Log.Info('multiple allowed tag "{}", tag_multi: "{}", data "{}", query: "{}"'.format(multi, tag_multi, thumb, query))
     else:  tag=None
     
-    # Create if doesn't exists, Update otherwise
+    # Create if doesn't exists
     if tag in (None, xml):             # tag not in xml or multi field and it is and not matching
+      Log.Info('tag: "{}" not present, adding'.format(key))
+      
       tag = XML.Element(key, **value)  #element = ET.Element(key) # program = ET.SubElement(element, nested_key)# new element, 'name' attribute reserved, otherwise: Element() got multiple values for keyword argument 'name' 
       xml.append(tag)                  # append new tag single element
-      Log.Info('tag: "{}" not present, adding'.format(key))
-    else:  #element.clear()
-      Log.Info('tag: "{}"     present, updating'.format(key))
-      for x, y in value.items():
-        if x=='text':  pass #tag.text = y   #element['text'] = y  #element.text='' attribute 'text' of 'StringElement' objects is not writable'  #._setText
-        else:          tag.set(x, y)  #Merge both, loop tags+attributes, add attributes to tag
+      
+    #Update text + attributes
+    elif 'text' in value:  #element.clear()
+      Log.Info('tag: "{}"     present, updating text + attributes'.format(key))
     
+      #replace text with new lxml objectify element
+      parent = tag.getparent()
+      setattr(parent, key, value['text'])  #parent.key=y but all attributes dropped,  x.text = 'newtext' not writable, x._setText('newtext') forbidden by plex due to '_'
+      # tag = objectify.E('newtext', atr='someatr')?
+      
+      #update attributes but 'text'
+      list = parent.getchildren()
+      for item in list:
+        if item.tag==key:
+          for x in value:
+            if x!='text':
+              item.attrib[x]=value[x]
+      
+      #remove gargage attributes
+      objectify.deannotate(parent, xsi_nil=True)  #pass  #tag.set(x, y) #tag.begin = y  #pass  # tag['text'] = y <text xmlns:py="http://codespeak.net/lxml/objectify/pytype" py:pytype="str"> #'tag.text = y' failed: attribute 'text' of 'ObjectifiedElement' objects is not writable
+      ET.cleanup_namespaces(parent)
+      
+    #Update attributes only
+    else:
+      Log.Info('tag: "{}"     present, updating attributes only'.format(key))
+      for x in value:
+        tag.set(x, value[x])
+      
     #Display XML tag and attributes
     Log.Info('xml tag: "{}", attributes: "{}"'.format(key, value))
     
@@ -189,7 +210,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   except Exception as e:  Log.Info('local_value - Exception: "{}", {}, {}'.format(e, xml_field, thumb));  return
  
   if   Prefs[field]=='Ignored':  Log.Info('[^] {}: {}'.format(''.format() if xml_field else field, destination))  # Ignored but text output given for checking behaviour without updating 
-  elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination))  # Identical
+  elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination));   # Identical
   
   # Plex update
   elif local_value and (not plex_value or Prefs['metadata_source']=='local' and metadata_field is not None):
@@ -217,6 +238,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
     
     elif ext=='nfo':          xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi)
 
+  
   return destination
   
 def UploadImagesToPlex(url_list, ratingKey, image_type):
@@ -399,8 +421,8 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(date_added                        , path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field='dateadded'                                                               )
             
             #Pictures
-            SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text':  SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext)  }}})
-            SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text':  SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext)  }}})
+            destination = SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination }}})
+            destination = SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination }}})
             
             #Multi tags
             for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
@@ -449,13 +471,13 @@ def Update(metadata, media, lang, force, agent_type):
             SaveFile(duration                         , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='runtime'      , metadata_field=metadata.duration               )
             SaveFile(rated                            , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='mpaa'         , metadata_field=metadata.summary                )
             SaveFile(date_added                       , path, 'series_nfo', nfo_xml=nfo_xml, xml_field='dateadded'    , metadata_field=None                            )
-            SaveFile(show.get('rating'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'ratings': {'rating': {'name': "", 'max': "10", 'default': ""}}}, metadata_field=metadata.rating)
+            SaveFile(show.get('rating'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'ratings': {'rating': {'Name': "", 'max': "10", 'default': "", 'value': {'text': show.get('rating')}}}}, metadata_field=metadata.rating)
             
             #Pictures, theme song
             SaveFile(show.get('theme'                ), path, 'series_themes')
-            if ratingKey in show.get('thumb' ):  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text':  SaveFile(show.get('thumb' ), path, 'series_poster')  }}}, metadata_field=None)
-            if ratingKey in show.get('art'   ):  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text':  SaveFile(show.get('art'   ), path, 'series_fanart')  }}}, metadata_field=None)
-            if ratingKey in show.get('banner'):  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text':  SaveFile(show.get('banner'), path, 'series_banner')  }}}, metadata_field=None)
+            if ratingKey in show.get('thumb' ):  destination = SaveFile(show.get('thumb' ), path, 'series_poster');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}})
+            if ratingKey in show.get('art'   ):  destination = SaveFile(show.get('art'   ), path, 'series_fanart');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}})
+            if ratingKey in show.get('banner'):  destination = SaveFile(show.get('banner'), path, 'series_banner');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}})
             
             #Multi tags
             for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True)
@@ -543,7 +565,7 @@ def Update(metadata, media, lang, force, agent_type):
               SaveFile(dirname                           , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='path',          )
               SaveFile(part.get('file')                  , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='filenameandpath')
               SaveFile(path                              , dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='basepath',      )
-              SaveFile(video.get('rating'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'ratings': {'rating': {'name': "", 'max': "10", 'default': "", 'value':{'text': video.get('rating')}}}}, metadata_field=metadata.seasons[season].episodes[episode].rating)
+              SaveFile(video.get('rating'               ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'test': {'rating': {'Name': "", 'max': "10", 'default': "", 'value':{'text': video.get('rating')}}}}, metadata_field=metadata.seasons[season].episodes[episode].rating)  #if 'name': 'Element() got multiple values for keyword argument 'name''
               for tag in video.iterdescendants('Director'):  SaveFile(tag.get('tag'),  dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.seasons[season].episodes[episode].directors,  dynamic_name=filenoext);  break
               for tag in video.iterdescendants('Writer'  ):  SaveFile(tag.get('tag'),  dirname, 'episode_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.seasons[season].episodes[episode].writers,    dynamic_name=filenoext)
               
@@ -661,7 +683,7 @@ def Update(metadata, media, lang, force, agent_type):
       
       for directory in PLEX_COLLECT_XML.iterchildren('Directory'):
         title = directory.get('title')
-        if title in collections or title+' Collection' in collections:
+        if title in collections or title.replace(' Collection', '') in collections:
           collections.remove(title)
           dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', title)
           Log.Info(''.ljust(157, '-'))
@@ -673,18 +695,18 @@ def Update(metadata, media, lang, force, agent_type):
           SaveFile(directory.get('childCount'), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='childcount', metadata_field=None)
           SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='minyear',    metadata_field=None)
           SaveFile(directory.get('maxYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='maxyear',    metadata_field=None)
-          SaveFile(directory.get('summary'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'plot': {lang:{'text':directory.get('summary')}}},       metadata_field=None)
-          SaveFile(media.title                , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'items': {'item': {'text':media.title}}},    metadata_field=None)
+          SaveFile(directory.get('summary'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'plot': {lang:{'text':directory.get('summary')}}} )
+          SaveFile(media.title                , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'items': {'item': {'text':media.title}}} )
           #SaveFile(directory.get('summary'   ), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
           
           rated   = ('Rated '+directory.get('contentRating')) if directory.get('contentRating') else ''
-          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='mpaa',       metadata_field=None)
+          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='mpaa')
           
           destination = SaveFile(directory.get('thumb'     ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}}, metadata_field=None)
+          SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}} )
           
           destination = SaveFile(directory.get('art'       ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}}, metadata_field=None)
+          SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}} )
           if DEBUG:  Log.Info(XML.StringFromElement(directory))
         else:
           collection_list.append(title)
