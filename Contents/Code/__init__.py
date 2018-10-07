@@ -285,8 +285,8 @@ def ValidatePrefs():
   filename_json = os.path.join(PlexRoot, 'Plug-ins',        'Lambda.bundle', 'Contents', 'DefaultPrefs.json')
   Log.Info("".ljust(157, '='))
   Log.Info ("ValidatePrefs() - PlexRoot: '{}'".format(PlexRoot))
-  Log.Info ("[ ] agent settings json file: '{}'".format(os.path.relpath(filename_json, PlexRoot)))
-  Log.Info ("[ ] agent settings xml prefs: '{}'".format(os.path.relpath(filename_xml , PlexRoot)))
+  Log.Info ("[?] agent settings json file: '{}'".format(os.path.relpath(filename_json, PlexRoot)))
+  Log.Info ("[?] agent settings xml prefs: '{}'".format(os.path.relpath(filename_xml , PlexRoot)))
   if Prefs['reset_to_defaults'] and os.path.isfile(filename_xml):  os.remove(filename_xml)  #delete filename_xml file to reset settings to default
   elif os.path.isfile(filename_json):
     try:
@@ -685,7 +685,11 @@ def Update(metadata, media, lang, force, agent_type):
         title = directory.get('title')
         if title in collections or title.replace(' Collection', '') in collections:
           collections.remove(title)
-          dirname = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', title)
+          dirname    = os.path.join(library_path if Prefs['collection_folder']=='root' else AgentDataFolder, '_Collections', title)
+          rated      = ('Rated '+directory.get('contentRating')) if directory.get('contentRating') else ''
+          dest_thumb = SaveFile(directory.get('thumb'     ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
+          dest_art   = SaveFile(directory.get('art'       ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
+                    
           Log.Info(''.ljust(157, '-'))
           Log.Info('[ ] Collection: "{}", path: "{}"'.format(title, dirname))
           
@@ -696,27 +700,23 @@ def Update(metadata, media, lang, force, agent_type):
           SaveFile(directory.get('minYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='minyear',    metadata_field=None)
           SaveFile(directory.get('maxYear'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='maxyear',    metadata_field=None)
           SaveFile(directory.get('summary'   ), dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'plot': {lang:{'text':directory.get('summary')}}} )
-          SaveFile(media.title                , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'items': {'item': {'text':media.title}}} )
+          SaveFile(media.title                , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field={'items': {'item': {'id':metadata.id, 'text':media.title}}} )
+          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='mpaa')
+          SaveFile(dest_thumb, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': dest_thumb}}} )
+          SaveFile(dest_art  , dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': dest_art  }}} )
           #SaveFile(directory.get('summary'   ), dirname, 'collection_resume', library_key, directory.get('ratingKey'), dynamic_name=lang)
           
-          rated   = ('Rated '+directory.get('contentRating')) if directory.get('contentRating') else ''
-          SaveFile(rated                      , dirname, 'collection_nfo',    nfo_xml=nfo_xml, xml_field='mpaa')
-          
-          destination = SaveFile(directory.get('thumb'     ), dirname, 'collection_poster', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}} )
-          
-          destination = SaveFile(directory.get('art'       ), dirname, 'collection_fanart', library_key, directory.get('ratingKey'), dynamic_name=lang)
-          SaveFile(destination, dirname, 'collection_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}} )
           if DEBUG:  Log.Info(XML.StringFromElement(directory))
-        else:
-          collection_list.append(title)
+        else:  collection_list.append(title)
     except Exception as e:  Log.Info("Exception: '{}'".format(e))
   Log.Info(''.ljust(157, '-'))
   for collection in collections:  #Collection warning if unlinked/was renammed
     Log.Info('[!] collection "{}" renamed in of the following: "{}". Please remove old collection tag and add new one'.format(collection, collection_list))
     Log.Info(''.ljust(157, '-'))
   
-  ### S  sorted(NFOs, key=natural_sort_key):
+  ### Save NFOs if different from local copy or file didn't exist #############################################################################################
+  Log.Info('NFO files')
+  for nfo in sorted(NFOs, key=natural_sort_key):
     nfo_string_xml     = XML.StringFromElement(NFOs[nfo]['xml'  ], encoding='utf-8')
     if nfo_string_xml == XML.StringFromElement(NFOs[nfo]['local'], encoding='utf-8'):  Log.Info('[=] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
     elif NFOs[nfo]['path'].endswith('Ignored'):                                        Log.Info('[ ] {:<12} path: "{}"'.format(nfo, NFOs[nfo]['path']))
