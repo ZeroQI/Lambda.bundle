@@ -359,8 +359,8 @@ def Update(metadata, media, lang, force, agent_type):
             Log.Info('title:                 {}'.format(video.get('title')))
             
             #NFO
-            nfo_xml     = nfo_load(NFOs, path, 'movies_nfo', filenoext=filenoext)
             filenoext   = '.'.join(media.items[0].parts[0].file.split('.')[:-1])
+            nfo_xml     = nfo_load(NFOs, path, 'movies_nfo', filenoext=filenoext)
             collections = [tag.get('tag') for tag in video.iterchildren('Collection')]
             roles       = [tag.get('tag') for tag in video.iterchildren('Role'      )]  
             duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration') is not None and video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
