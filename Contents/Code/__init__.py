@@ -355,7 +355,7 @@ def Update(metadata, media, lang, force, agent_type):
       try:
         PLEX_XML_MOVIES, count, total = xml_from_url_paging_load(PLEX_URL_MOVIES, library_key, count, WINDOW_SIZE[agent_type])
         for video in PLEX_XML_MOVIES.iterchildren('Video'):
-          if media.title==video.get('title') and metadata.year == video.get('year'):   
+          if media.id == video.get('ratingKey'):
             Log.Info('title:                 {}'.format(video.get('title')))
             
             #NFO
