@@ -323,7 +323,7 @@ def Update(metadata, media, lang, force, agent_type):
                             '(Season|Series|Book|Saison|Livre|S)[ _\-]*(?P<season>[0-9]{1,2}).*',  # Season ##, Series #Book ## Saison ##, Livre ##, S##, S ##
                             '(?P<show>.*?)[\._\- ]+[sS](?P<season>[0-9]{2})',                      # (title) S01
                             '(?P<season>[0-9]{1,2})a? Stagione.*',                                 # ##a Stagione
-                            '(?P<season>[0-9]{1,2}).*',	                                           # ##
+                            #'(?P<season>[0-9]{1,2}).*',	                                           # ##
                             '^.*([Ss]aga]|([Ss]tory )?[Aa][Rr][KkCc]).*$'                          # Last entry in array, folder name droped but files kept: Story, Arc, Ark, Video
                           ]                                                                                                                                                       #
     for folder in rel_reverse_path if agent_type=='show' else []:
