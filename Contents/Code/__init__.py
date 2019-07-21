@@ -326,7 +326,7 @@ def Update(metadata, media, lang, force, agent_type):
                             '(?P<season>[0-9]{1,2}).*',	                                           # ##
                             '^.*([Ss]aga]|([Ss]tory )?[Aa][Rr][KkCc]).*$'                          # Last entry in array, folder name droped but files kept: Story, Arc, Ark, Video
                           ]                                                                                                                                                       #
-    for folder in rel_reverse_path:
+    for folder in rel_reverse_path if agent_type=='show' else []:
       for rx in SEASON_RX:
         if re.match(rx, folder, re.IGNORECASE):
           Log.Info('rx: {}'.format(rx))
