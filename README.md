@@ -1,4 +1,4 @@
-##Local Assets-Metadata Double Agent Features:
+## Local Assets-Metadata Double Agent Features:
 - Takes Plex metadata and save it locally alongside media files, including collections
 - allow to import back local metadata exported through 'Local Media Assets' and also what isn't handled by 'Local Media Assets' (collection summary, not yet supported for upload: collection poster, fanart, not yet supported for upload/download: metadata text fields in NFO file)
 
