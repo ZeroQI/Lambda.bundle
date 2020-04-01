@@ -365,7 +365,7 @@ def Update(metadata, media, lang, force, agent_type):
             roles       = [tag.get('tag') for tag in video.iterchildren('Role'      )]  
             duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration') is not None and video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated       = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
-            date_added  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt'))))
+            date_added  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt')))) if video.get('addedAt') else None
             SaveFile(id                                , path, 'series_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field={'uniqueid': {'type': source or 'unknown', 'default': 'true', 'text': id}})
             SaveFile(video.get('title'                ), path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field='title',          metadata_field=metadata.title                           )
             SaveFile(video.get('originalTitle'        ), path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field='originaltitle',  metadata_field=metadata.original_title                  )
@@ -417,7 +417,7 @@ def Update(metadata, media, lang, force, agent_type):
             roles      = [tag.get('tag') for tag in show.iterchildren('Role')]  #Used in Advance information: viewedLeafCount, Location, Roles
             duration   = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration') is not None and show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated      = ('Rated '+show.get('contentRating')) if show.get('contentRating') else ''
-            date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(show.get('addedAt'))))
+            date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(show.get('addedAt')))) if show.get('addedAt') else None
             SaveFile(id                               , path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'uniqueid': {'type': source or 'unknown', 'default': 'true', 'text': id}}, metadata_field=None)
             SaveFile(show.get('title'                ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='title'        , metadata_field=metadata.title                  )
             SaveFile(show.get('originalTitle'        ), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='originaltitle', metadata_field=metadata.title                  )
