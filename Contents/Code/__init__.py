@@ -160,20 +160,21 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   ### local_value
   try:
     local_value=''
+    tag=None
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3', 'txt'): local_value = Core.storage.load(destination) if os.path.exists(destination) else ''
     elif ext=='nfo': 
-      
-      tag=None
-      if not isinstance(xml_field, dict):
+      if isinstance(xml_field, dict):
+        local_value = xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi, return_value_only=True)
+      else:
         tag = nfo_xml.find( './/'+xml_field )
         if tag is not None:
+          if DEBUG:  Log.Info('[?] tag: {}'.format(tag))
           local_value = tag[0].text
-      else: local_value = xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi, return_value_only=True) #return thumb if tag exist '' otherwise
     else:
       Log.Info('[!] Unknown extension')
       return
     if DEBUG:             Log.Info('[?] local_value: "{}", type: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and local_value!='' else local_value, type(local_value)))
-  except Exception as e:  Log.Info('local_value - Exception: "{}", {}, {}'.format(e, xml_field, thumb));  return
+  except Exception as e:  Log.Info('local_value - Exception: "{}", {}, {}, {}'.format(e, xml_field, thumb, tag));  return
  
   if   Prefs[field]=='Ignored':  Log.Info('[^] {}: {}'.format(''.format() if xml_field else field, destination))  # Ignored but text output given for checking behaviour without updating 
   elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination));   # Identical
