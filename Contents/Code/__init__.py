@@ -362,7 +362,6 @@ def Update(metadata, media, lang, force, agent_type):
             filenoext   = '.'.join(media.items[0].parts[0].file.split('.')[:-1])
             nfo_xml     = nfo_load(NFOs, path, 'movies_nfo', filenoext=filenoext)
             collections = [tag.get('tag') for tag in video.iterchildren('Collection')]
-            roles       = [tag.get('tag') for tag in video.iterchildren('Role'      )]  
             duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration') is not None and video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated       = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
             date_added  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt')))) if video.get('addedAt') else None
@@ -389,6 +388,7 @@ def Update(metadata, media, lang, force, agent_type):
             for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'Name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='role')
             
             #Debug
             if DEBUG:
