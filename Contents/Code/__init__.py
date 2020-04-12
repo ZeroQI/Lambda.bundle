@@ -366,7 +366,7 @@ def Update(metadata, media, lang, force, agent_type):
             duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration') is not None and video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated       = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
             date_added  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt')))) if video.get('addedAt') else None
-            SaveFile(id                                , path, 'series_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field={'uniqueid': {'type': source or 'unknown', 'default': 'true', 'text': id}})
+            SaveFile(id                                , path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field={'uniqueid': {'type': source or 'unknown', 'default': 'true', 'text': id}})
             SaveFile(video.get('title'                ), path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field='title',          metadata_field=metadata.title                           )
             SaveFile(video.get('originalTitle'        ), path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field='originaltitle',  metadata_field=metadata.original_title                  )
             SaveFile(video.get('titleSort'            ), path, 'movies_nfo', nfo_xml=nfo_xml, dynamic_name=filenoext, xml_field='sorttitle'                                                               )
