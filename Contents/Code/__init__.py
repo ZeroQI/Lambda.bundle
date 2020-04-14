@@ -96,43 +96,45 @@ def xml_import(xml, xml_tags2, root, multi=False, thumb='', tag_multi='', return
       return value
   '''
   xml_tags = copy.deepcopy(xml_tags2)
-  if not return_value_only and not nested: Log.Info('xml_import() - xml: {}, xml_tags: {}, root: {}, multi: {}, thumb: {}'.format(xml, xml_tags, root, multi, thumb))
   for key, value in xml_tags.items() if isinstance(xml_tags, dict) else {xml_tags: {'text':thumb}}.items():  #iterate over a copy otherwise can't change dict while iterating
     nested_tags = { nested_key: value.pop(nested_key) for nested_key, nested_value in value.items() if isinstance(nested_value, dict) }  #.items used to avoid Exception: 'dictionary changed size during iteration'
-    tag         = xml.find('.//'+key)
+    if (tag_multi or multi):
+      tag = xml.xpath('.//{}[text()="{}"]'.format(tag_multi or key, thumb))  #tag = xml.find('.//'+(tag_multi or key))
+      if len(tag): tag=tag[0]
+    else:  tag = xml.find('.//'+key)
     
     if return_value_only:
       if not tag:                      return
-      elif tag_multi or multi:         return thumb if len(xml.xpath('.//{}[text()="{}"]'.format(tag_multi or multi, thumb))) else None
-      elif xml_tags.keys()==['text']:  return tag.text
-    if not isinstance(value, dict):  value = {'text': value}  #if value is not a dict, make it one
-    if tag is None or key==(tag_multi or multi) and xml.xpath('.//{}[text()="{}"]'.format(tag_multi or multi, thumb)) == []:
+      elif tag_multi or multi:         return thumb if len(xml.xpath('.//{}[text()="{}"]'.format(tag_multi or key, thumb))) else ""
+      elif tag.text:                   return tag.text
+    
+    if not multi and not isinstance(value, dict):  value = {'text': value}  #if value is not a dict, make it one
+    if tag is None or (tag_multi or multi) and xml.xpath('.//{}[text()="{}"]'.format(tag_multi or key, thumb))== []:
       Log.Info('[X] tag: "{}" created with attributes: "{}"'.format(key, value))
       tag = XML.Element(key, **value)  # cannot use 'name' attribute:  Element() got multiple values for keyword argument 'name' 
       xml.append(tag)                  # append new tag single element  #element = ET.Element(key) # program = ET.SubElement(element, nested_key)
     elif not return_value_only:
-      Log.Info('[=] tag: "{}" found, updating attributes: "{}"'.format(key, value))
-      if 'text' in value and value['text']!=tag.text:  setattr(xml, key, value.pop('text', None))  #value['text']  #parent.key=y but all attributes dropped,  x.text = 'newtext' not writable, x._setText('newtext') forbidden by plex due to '_'
+      Log.Info('[X] tag: "{}" found, updating attributes: "{}"'.format(key, value))
+      if isinstance(value, dict) and 'text' in value and value['text']!=tag.text:  setattr(xml, key, value.pop('text', None)) #parent.key=y but all attributes dropped,  x.text = 'newtext' not writable, x._setText('newtext') forbidden by plex due to '_'
+      #if isinstance(value, dict) and 'text' in value and tag.text:  delattr(xml, key)  #value['text']  #parent.key=y but all attributes dropped,  x.text = 'newtext' not writable, x._setText('newtext') forbidden by plex due to '_'
       #  if len(tag):  tag[-1].tail = (tag[-1].tail or "") + value['text']
       #  else:         tag.text     = (tag.text     or "") + value['text']
       for x in value:  tag.attrib[x]=value[x]; Log.Info('attribute: "{}", value: "{}"'.format(x, value[x]))  #tag.set(x, value[x]  #xml_tags.update(xml_tags_backup)
-      objectify.deannotate(xml, xsi_nil=True)  #remove gargage attributes #tag.set(x, y) #tag.begin = y  #pass  # tag['text'] = y <text xmlns:py="http://codespeak.net/lxml/objectify/pytype" py:pytype="str"> #'tag.text = y' failed: attribute 'text' of 'ObjectifiedElement' objects is not writable
+      objectify.deannotate(xml, xsi_nil=True)  #remove garbage attributes #tag.set(x, y) #tag.begin = y  #pass  # tag['text'] = y <text xmlns:py="http://codespeak.net/lxml/objectify/pytype" py:pytype="str"> #'tag.text = y' failed: attribute 'text' of 'ObjectifiedElement' objects is not writable
       etree.cleanup_namespaces(xml)
     if nested_tags!={}:  return xml_import(tag, nested_tags, root + '/' + key, multi, thumb, tag_multi, return_value_only, nested=True)  # Nested tags recursive call
-  
+      
 def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=None, xml_field='', metadata_field=None, tags={}, multi=False, tag_multi=''):
   ''' Save Metadata to file if different, or restore it to Plex if it doesn't exist anymore
       - thumb:          url to picture or text or list...
       - destination:    path to export file (jpg or nfo)
       - field:          Prefs field name to check if export/importing
-      
       - dynamic_name:   used to replace {} in agent pref filenames
-      
       - nfo_xml:        (nfo) xml dict to update. will be saved if different from backup at the end
       - xml_field:      (nfo) xml tag name
       - xml tags:       (nfo) xml attributes
       - metadata_field: (nfo) metadata field to update
-      
+        key:            
       Usage:
       - SaveFile(show.get('theme'), path, 'series_themes')
       - SaveFile(show.get('title'), path, 'series_nfo', nfo_xml=NFOs['series_nfo']['xml'], xml_field='title', metadata_field=metadata.title)
@@ -154,7 +156,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       if ext in ('jpg', 'mp3'):  plex_value = HTTP.Request(PMS+thumb).content #response.headers['content-length']
       else:                      plex_value = thumb #txt, nfo
     else:                        plex_value = ''  
-    if DEBUG:             Log.Info('[?] plex_value:  "{}", type: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and plex_value!='' else plex_value, type(plex_value)))
+    if DEBUG:             Log.Info('[?]  plex_value: "{}", type: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and plex_value!='' else plex_value, type(plex_value)))
   except Exception as e:  Log.Info('plex_value - Exception: "{}"'.format(e));  return
   
   ### local_value
@@ -163,16 +165,20 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
     tag=None
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3', 'txt'): local_value = Core.storage.load(destination) if os.path.exists(destination) else ''
     elif ext=='nfo': 
-      if isinstance(xml_field, dict):
+      if isinstance(xml_field, dict):  
+        Log.Info('[!] return_value_only: {}'.format(str(nfo_root_tag[field])));  
         local_value = xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi, return_value_only=True)
+      elif multi:  #tag = nfo_xml.find( './/{}'.format(xml_field))  #tags = nfo_xml.xpath('.//{}[text()="{}"]'.format(xml_field, thumb))
+        tags = nfo_xml.findall( './/'+xml_field)
+        Log.Info('[!] tags: {}'.format(str(tags)));  
+        for tag in tags:
+          Log.Info('[!] tag loop: {}'.format(str(tag)));  
+          if str(tag)==thumb:  local_value=thumb;  break  #tag[0].text==
+        else:  tag=None
       else:
-        tag = nfo_xml.find( './/'+xml_field )
-        if tag is not None:
-          if DEBUG:  Log.Info('[?] tag: {}'.format(tag))
-          local_value = tag[0].text
-    else:
-      Log.Info('[!] Unknown extension')
-      return
+        tag = nfo_xml.find( './/'+xml_field)
+        if tag: local_value = tag[0].text
+    else:  Log.Info('[!] Unknown extension');  return
     if DEBUG:             Log.Info('[?] local_value: "{}", type: "{}"'.format('binary...' if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3') and local_value!='' else local_value, type(local_value)))
   except Exception as e:  Log.Info('local_value - Exception: "{}", {}, {}, {}'.format(e, xml_field, thumb, tag));  return
  
@@ -195,8 +201,8 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   # Local update
   elif plex_value and (not local_value or Prefs['metadata_source']=='plex' or Prefs['metadata_source']=='local' and metadata_field is None):
       
-    if  os.path.exists(os.path.dirname(destination)):  Log.Info('[@] Local update - {}: {} directory already exists'.format (field, os.path.basename(destination)))
-    else:  os.makedirs(os.path.dirname(destination));  Log.Info('[@] Local update - {}: {} directory needed creating'.format(field, os.path.basename(destination)))
+    #if  os.path.exists(os.path.dirname(destination)):  Log.Info('[@] Local update - {}: {} directory already exists'.format (field, os.path.basename(destination)))
+    #else:  os.makedirs(os.path.dirname(destination));  Log.Info('[@] Local update - {}: {} directory needed creating'.format(field, os.path.basename(destination)))
     if ext in ('jpg', 'mp3', 'txt'):  
       if DEBUG:               Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
       try:                    Core.storage.save(destination, plex_value)
@@ -385,11 +391,11 @@ def Update(metadata, media, lang, force, agent_type):
             destination = SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination }}})
             
             #Multi tags
+            for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
             for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
-            for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
-            for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
             
             #Debug
             if DEBUG:
@@ -439,7 +445,7 @@ def Update(metadata, media, lang, force, agent_type):
             if ratingKey in (show.get('banner') or []):  destination = SaveFile(show.get('banner'), path, 'series_banner');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}})
             
             #Multi tags
-            for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True)
+            for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
             for tag in show.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
             
             #Debug output
