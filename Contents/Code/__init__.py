@@ -165,16 +165,12 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
     tag=None
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3', 'txt'): local_value = Core.storage.load(destination) if os.path.exists(destination) else ''
     elif ext=='nfo': 
-      if isinstance(xml_field, dict):  
-        Log.Info('[!] return_value_only: {}'.format(str(nfo_root_tag[field])));  
-        local_value = xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi, return_value_only=True)
+      if isinstance(xml_field, dict):  local_value = xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi, return_value_only=True)
       elif multi:  #tag = nfo_xml.find( './/{}'.format(xml_field))  #tags = nfo_xml.xpath('.//{}[text()="{}"]'.format(xml_field, thumb))
         tags = nfo_xml.findall( './/'+xml_field)
-        Log.Info('[!] tags: {}'.format(str(tags)));  
         for tag in tags:
-          Log.Info('[!] tag loop: {}'.format(str(tag)));  
           if str(tag)==thumb:  local_value=thumb;  break  #tag[0].text==
-        else:  tag=None
+        else:  tag = None
       else:
         tag = nfo_xml.find( './/'+xml_field)
         if tag: local_value = tag[0].text
