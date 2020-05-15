@@ -323,7 +323,7 @@ def Update(metadata, media, lang, force, agent_type):
     rel_reverse_path    = list(reversed(rel_path.split(os.sep))) if rel_path!='' else []
     subfolder_count     = len([file for file in os.listdir(series_root_folder) if os.path.isdir(os.path.join(series_root_folder, file))] or [])
     SEASON_RX           = [ 'Specials',                                                                                                                                           # Specials (season 0)
-                            '(Season|Series|Book|Saison|Livre|S)[ _\-]*(?P<season>[0-9]{1,2}).*',  # Season ##, Series #Book ## Saison ##, Livre ##, S##, S ##
+                            '(Season|Series|Book|Saison|Livre|Temporada|S)[ _\-]*(?P<season>[0-9]{1,2}).*',  # Season ##, Series #Book ## Saison ##, Livre ##, S##, S ##
                             '(?P<show>.*?)[\._\- ]+[sS](?P<season>[0-9]{2})',                      # (title) S01
                             '(?P<season>[0-9]{1,2})a? Stagione.*',                                 # ##a Stagione
                             #'(?P<season>[0-9]{1,2}).*',	                                           # ##
