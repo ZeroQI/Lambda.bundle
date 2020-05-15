@@ -182,8 +182,8 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination));   # Identical
   
   # Plex update
-  elif local_value and (not plex_value or Prefs['metadata_source']=='local' and metadata_field is not None):
-    Log.Info('[@] Plex update {}: {}, ratingKey: {}'.format(field, destination, ratingKey))
+  elif local_value and (not plex_value or Prefs['metadata_source']=='local') and metadata_field is not None:
+    Log.Info('[@] Plex  update {}: {}, ratingKey: {}'.format(field, destination, ratingKey))
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3'):
       if ratingKey=='':  Log.Info('[!] Source code missing key and ratingKey to allow plex metadata update from local disk information')
       else:              UploadImagesToPlex(destination, ratingKey, 'poster' if 'poster' in field else 'art' if 'fanart' in field else field)
@@ -195,10 +195,14 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
          
   # Local update
-  elif plex_value and (not local_value or Prefs['metadata_source']=='plex' or Prefs['metadata_source']=='local' and metadata_field is None):
+  elif plex_value and (not local_value or Prefs['metadata_source']=='local') and metadata_field is not None:
       
-    #if  os.path.exists(os.path.dirname(destination)):  Log.Info('[@] Local update - {}: {} directory already exists'.format (field, os.path.basename(destination)))
-    #else:  os.makedirs(os.path.dirname(destination));  Log.Info('[@] Local update - {}: {} directory needed creating'.format(field, os.path.basename(destination)))
+    if not os.path.exists(os.path.dirname(destination)):
+      os.makedirs(os.path.dirname(destination))
+      Log.Info('[@] Local update - {}: {}[dir created], ratingKey: {}'.format(field, os.path.basename(destination), ratingKey))
+    else:
+      Log.Info('[@] Local update {}: {}, ratingKey: {}'.format(field, destination, ratingKey))
+    
     if ext in ('jpg', 'mp3', 'txt'):  
       if DEBUG:               Log.Info('[{}] {}: {}'.format('!' if os.path.exists(destination) else '*', field, os.path.basename(destination)))
       try:                    Core.storage.save(destination, plex_value)
