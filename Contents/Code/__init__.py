@@ -702,7 +702,7 @@ class LambdaTV(Agent.TV_Shows):
 class LambdaMovie(Agent.Movies):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   persist_stored_files = False
-  contributes_to       = ['com.plexapp.agents.hama', 'com.plexapp.agents.imdb', 'com.plexapp.agents.none', 'com.plexapp.agents.phoenixadult']
+  contributes_to       = ['com.plexapp.agents.hama', 'com.plexapp.agents.imdb', 'com.plexapp.agents.none', 'com.plexapp.agents.themoviedb', 'com.plexapp.agents.phoenixadult']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'movie')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'movie')
 
