@@ -195,8 +195,8 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
          
   # Local update
-  elif plex_value and (not local_value or Prefs['metadata_source']=='local') and metadata_field is not None:
-      
+  elif plex_value and (not local_value or Prefs['metadata_source']=='plex') and metadata_field is not None:
+    
     if not os.path.exists(os.path.dirname(destination)):
       os.makedirs(os.path.dirname(destination))
       Log.Info('[@] Local update - {}: {}[dir created], ratingKey: {}'.format(field, os.path.basename(destination), ratingKey))
