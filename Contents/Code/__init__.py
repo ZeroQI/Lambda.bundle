@@ -182,7 +182,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
   elif local_value==plex_value:  Log.Info('[=] No update - {}: {}'.format(field, destination));   # Identical
   
   # Plex update
-  elif local_value and (not plex_value or Prefs['metadata_source']=='local') and metadata_field is not None:
+  elif local_value and (not plex_value or Prefs['metadata_source']=='local'):
     Log.Info('[@] Plex  update {}: {}, ratingKey: {}'.format(field, destination, ratingKey))
     if ext in ('jpg', 'jpeg', 'png', 'tbn', 'mp3'):
       if ratingKey=='':  Log.Info('[!] Source code missing key and ratingKey to allow plex metadata update from local disk information')
@@ -195,7 +195,7 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       Log.Info('request content: {}, headers: {}, load: {}'.format(r.content, r.headers, r.load))
          
   # Local update
-  elif plex_value and (not local_value or Prefs['metadata_source']=='plex') and metadata_field is not None:
+  elif plex_value and (not local_value or Prefs['metadata_source']=='plex'):
     
     if not os.path.exists(os.path.dirname(destination)):
       os.makedirs(os.path.dirname(destination))
@@ -209,6 +209,9 @@ def SaveFile(thumb, path, field, key="", ratingKey="", dynamic_name="", nfo_xml=
       except Exception as e:  Log.Info('Exception: "{}"'.format(e))
     elif ext=='nfo':          xml_import(nfo_xml, xml_field, nfo_root_tag[field], multi, thumb, tag_multi)
   
+  else:
+    Log.Info("[@] No    update {}: {}, ratingKey: {}, Prefs['metadata_source']: {}".format(field, destination, ratingKey, Prefs['metadata_source']))
+    
   return destination
   
 def UploadImagesToPlex(url_list, ratingKey, image_type):
