@@ -698,7 +698,7 @@ def Update(metadata, media, lang, force, agent_type):
 class LambdaTV(Agent.TV_Shows):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   persist_stored_files = False
-  contributes_to       = ['com.plexapp.agents.hama', 'com.plexapp.agents.thetvdb', 'com.plexapp.agents.none']
+  contributes_to       = ['com.plexapp.agents.hama', 'com.plexapp.agents.thetvdb', 'com.plexapp.agents.themoviedb', 'com.plexapp.agents.none']
   def search (self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'show')
   def update (self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'show')
 
