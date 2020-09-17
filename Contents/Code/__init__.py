@@ -372,7 +372,6 @@ def Update(metadata, media, lang, force, agent_type):
             #NFO
             filenoext   = '.'.join(media.items[0].parts[0].file.split('.')[:-1])
             nfo_xml     = nfo_load(NFOs, path, 'movies_nfo', filenoext=filenoext)
-            collections = [tag.get('tag') for tag in video.iterchildren('Collection')]
             duration    = str(int(video.get('duration'))/ (1000 * 60)) if video.get('duration') is not None and video.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated       = ('Rated '+video.get('contentRating')) if video.get('contentRating') else ''
             date_added  = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(video.get('addedAt')))) if video.get('addedAt') else None
@@ -394,22 +393,25 @@ def Update(metadata, media, lang, force, agent_type):
             destination = SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination }}})
             destination = SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination }}})
             
-            #xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
-            #if xml is not None: #Multi tags
-              #for tag in show.iterchildren('Genre'     ):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
-              #for tag in show.iterchildren('Collection'):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
-            
-            #Multi tags
-            for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext, multi=True)
-            for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
-            for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
-            for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
-            for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
+            xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
+            if xml is not None:
+              genres, collections = [], []
+              for tag in xml.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre');  genres.append(tag.get('tag'))
+              for tag in xml.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag'))
+              #for tag in xml.iterchildren('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
+              Log.Info("Genres:      {}".format(genres     ))
+              Log.Info("Collections: {}".format(collections))
+              
+            #Multi tags [if missing after 2, move in code above loading from 'xml' instead of 'video']
+            for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
+            for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
+            for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
             
             #Debug
             if DEBUG:
-              Log.Info('collection:            {}'.format(collections))
-              Log.Info(XML.StringFromElement(video))  #Un-comment for XML code displayed in logs
+              Log.Info(XML.StringFromElement(video))
+              Log.Info(XML.StringFromElement(xml  ))
             break
         else:  continue
         break      
@@ -463,8 +465,8 @@ def Update(metadata, media, lang, force, agent_type):
             if xml is not None:
 
               #Multi tags
-              for tag in show.iterchildren('Genre'     ):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
-              for tag in show.iterchildren('Collection'):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
+              for tag in xml.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
+              for tag in xml.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
               
               for directory in xml.xpath('//MediaContainer/Directory'):
                 
