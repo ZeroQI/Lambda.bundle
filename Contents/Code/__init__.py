@@ -365,7 +365,8 @@ def Update(metadata, media, lang, force, agent_type):
       try:
         PLEX_XML_MOVIES, count, total = xml_from_url_paging_load(PLEX_URL_MOVIES, library_key, count, WINDOW_SIZE[agent_type])
         for video in PLEX_XML_MOVIES.iterchildren('Video'):
-          if media.id == video.get('ratingKey'):
+          ratingKey = video.get('ratingKey')
+          if media.id == ratingKey:
             Log.Info('title:                 {}'.format(video.get('title')))
             
             #NFO
@@ -394,9 +395,7 @@ def Update(metadata, media, lang, force, agent_type):
             destination = SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination }}})
             
             #xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
-            #if xml is not None:
-
-              #Multi tags
+            #if xml is not None: #Multi tags
               #for tag in show.iterchildren('Genre'     ):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
               #for tag in show.iterchildren('Collection'):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
             
