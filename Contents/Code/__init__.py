@@ -393,6 +393,13 @@ def Update(metadata, media, lang, force, agent_type):
             destination = SaveFile(video.get('thumb'), path, 'movies_poster', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination }}})
             destination = SaveFile(video.get('art'  ), path, 'movies_fanart', dynamic_name=filenoext);  SaveFile(destination, path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination }}})
             
+            #xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
+            #if xml is not None:
+
+              #Multi tags
+              #for tag in show.iterchildren('Genre'     ):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
+              #for tag in show.iterchildren('Collection'):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
+            
             #Multi tags
             for tag in video.iterchildren('Genre'     ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',    metadata_field=metadata.genres,    dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag') , path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
@@ -446,11 +453,7 @@ def Update(metadata, media, lang, force, agent_type):
             if ratingKey in (show.get('thumb' ) or []):  destination = SaveFile(show.get('thumb' ), path, 'series_poster');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'poster': {'text': destination}}})
             if ratingKey in (show.get('art'   ) or []):  destination = SaveFile(show.get('art'   ), path, 'series_fanart');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}})
             if ratingKey in (show.get('banner') or []):  destination = SaveFile(show.get('banner'), path, 'series_banner');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}})
-            
-            #Multi tags
-            for tag in show.iterchildren('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
-            for tag in show.iterchildren('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
-            
+                       
             #Debug output
             if DEBUG:
               Log.Info('collection:            {}'.format(collections))  
@@ -459,6 +462,11 @@ def Update(metadata, media, lang, force, agent_type):
             #Advance information: viewedLeafCount, Location, Roles
             xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
             if xml is not None:
+
+              #Multi tags
+              for tag in show.iterchildren('Genre'     ):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
+              for tag in show.iterchildren('Collection'):  SaveFile(xml.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
+              
               for directory in xml.xpath('//MediaContainer/Directory'):
                 
                 #NFO
