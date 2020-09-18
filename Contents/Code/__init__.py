@@ -350,7 +350,6 @@ def Update(metadata, media, lang, force, agent_type):
     
   ### Variables initialization ###
   NFOs            = {}
-  collections     = []
   ratingKey       = ""
   source          = ''
   guid            = ''
@@ -395,21 +394,21 @@ def Update(metadata, media, lang, force, agent_type):
             
             xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
             if xml is not None:
-              genres, collections = [], []
+              roles, genres, collections = [], [], []
               for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',      metadata_field=metadata.genres,      multi=True, tag_multi='genre');  genres.append(tag.get('tag'))
               for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='collection', metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag'))
-              #for tag in xml.iterchildren('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
-              Log.Info("Genres:      {}".format(genres     ))
-              Log.Info("Collections: {}".format(collections))
+              for tag in xml.iterdescendants('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name');  roles.append(tag.get('tag'))
               
             #Multi tags [if missing after 2, move in code above loading from 'xml' instead of 'video']
-            for tag in video.iterchildren('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name')
             for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
             
             #Debug
             if DEBUG:
+              Log.Info("Genres:      {}".format(genres     ))
+              Log.Info("Collections: {}".format(collections))
+              Log.Info("Roles:       {}".format(roles      ))
               Log.Info(XML.StringFromElement(video))
               Log.Info(XML.StringFromElement(xml  ))
             break
@@ -455,34 +454,28 @@ def Update(metadata, media, lang, force, agent_type):
             if ratingKey in (show.get('art'   ) or []):  destination = SaveFile(show.get('art'   ), path, 'series_fanart');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'fanart': {'text': destination}}})
             if ratingKey in (show.get('banner') or []):  destination = SaveFile(show.get('banner'), path, 'series_banner');  SaveFile(destination, path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'art': {'banner': {'text': destination}}})
                        
-            #Debug output
-            if DEBUG:
-              Log.Info('collection:            {}'.format(collections))  
-              Log.Info(XML.StringFromElement(show))
-            
             #Advance information: viewedLeafCount, Location, Roles
             xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
             if xml is not None:
 
               #Multi tags
-              for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre', metadata_field=metadata.genres,      multi=True, tag_multi='genre')
-              for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='tag',   metadata_field=metadata.collections, multi=True);  collections.append(tag.get('tag')); 
-              
+              roles, genres, collections = [], [], []
+              for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre',      metadata_field=metadata.genres,      multi=True, tag_multi='genre');       genres.append(tag.get('tag'))
+              for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='collection', metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag')) 
               for directory in xml.xpath('//MediaContainer/Directory'):
-                
-                #NFO
                 SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='path'     )
                 SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='basepath' )
                 SaveFile(directory.get('viewedLeafCount'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='playcount')
-                for role in directory.iterchildren('Role'):
-                  if role.get('tag') in roles:
-                    SaveFile(role.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': role.get('role')}, 'Name': {'text': role.get('tag')}, 'thumb': {'text': role.get('thumb')}}}, multi='actor', tag_multi='role')
-                
-                #Debug output
-                if DEBUG:
-                  Log.Info(XML.StringFromElement(show))
-                  Log.Info(XML.StringFromElement(xml))
-                  Log.Info(str(roles))
+                for tag in directory.iterchildren('Role'):
+                  SaveFile(tag.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'Name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='role')
+                  roles.append(tag.get('tag'))
+              #Debug output
+              if DEBUG:
+                Log.Info("Roles:       {}".format(roles      ))
+                Log.Info("Genres:      {}".format(genres     ))
+                Log.Info("Collections: {}".format(collections))
+                Log.Info(XML.StringFromElement(show))
+                Log.Info(XML.StringFromElement(xml))
             break
         else:  continue
         break      
