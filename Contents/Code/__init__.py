@@ -397,20 +397,18 @@ def Update(metadata, media, lang, force, agent_type):
               roles, genres, collections = [], [], []
               for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',      metadata_field=metadata.genres,      multi=True, tag_multi='genre');  genres.append(tag.get('tag'))
               for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='collection', metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag'))
-              for tag in xml.iterdescendants('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='name');  roles.append(tag.get('tag'))
+              for tag in xml.iterdescendants('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb') if 'thumb' in tag else: ""}}}, multi='actor', tag_multi='name');  roles.append(tag.get('tag'))
+              Log.Info("Genres:      {}".format(genres     ))
+              Log.Info("Collections: {}".format(collections))
+              Log.Info("Roles:       {}".format(roles      ))
               
             #Multi tags [if missing after 2, move in code above loading from 'xml' instead of 'video']
             for tag in video.iterchildren('Director'  ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='director', metadata_field=metadata.directors, dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Writer'    ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='credits',  metadata_field=metadata.writers,   dynamic_name=filenoext, multi=True)
             for tag in video.iterchildren('Country'   ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='country',  metadata_field=metadata.countries, dynamic_name=filenoext, multi=True)
             
-            #Debug
-            if DEBUG:
-              Log.Info("Genres:      {}".format(genres     ))
-              Log.Info("Collections: {}".format(collections))
-              Log.Info("Roles:       {}".format(roles      ))
-              Log.Info(XML.StringFromElement(video))
-              Log.Info(XML.StringFromElement(xml  ))
+            Log.Info(XML.StringFromElement(video))
+            Log.Info(XML.StringFromElement(xml  ))
             break
         else:  continue
         break      
@@ -467,7 +465,7 @@ def Update(metadata, media, lang, force, agent_type):
                 SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='basepath' )
                 SaveFile(directory.get('viewedLeafCount'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='playcount')
                 for tag in directory.iterchildren('Role'):
-                  SaveFile(tag.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'Name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')}}}, multi='actor', tag_multi='role')
+                  SaveFile(tag.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'Name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb') if 'thumb' in tag else: ""}}}, multi='actor', tag_multi='role')
                   roles.append(tag.get('tag'))
               #Debug output
               if DEBUG:
