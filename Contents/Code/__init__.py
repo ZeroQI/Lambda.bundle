@@ -467,11 +467,10 @@ def Update(metadata, media, lang, force, agent_type):
                 for tag in directory.iterchildren('Role'):
                   SaveFile(tag.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'Name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb') if 'thumb' in tag else: ""}}}, multi='actor', tag_multi='role')
                   roles.append(tag.get('tag'))
-              #Debug output
+              Log.Info("Roles:       {}".format(roles      ))
+              Log.Info("Genres:      {}".format(genres     ))
+              Log.Info("Collections: {}".format(collections))
               if DEBUG:
-                Log.Info("Roles:       {}".format(roles      ))
-                Log.Info("Genres:      {}".format(genres     ))
-                Log.Info("Collections: {}".format(collections))
                 Log.Info(XML.StringFromElement(show))
                 Log.Info(XML.StringFromElement(xml))
             break
