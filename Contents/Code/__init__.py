@@ -349,6 +349,9 @@ def Update(metadata, media, lang, force, agent_type):
     Log.Info('')
     
   ### Variables initialization ###
+  roles           = []
+  genres          = []
+  collections     = []
   NFOs            = {}
   ratingKey       = ""
   source          = ''
@@ -396,7 +399,7 @@ def Update(metadata, media, lang, force, agent_type):
             xml = XML.ElementFromURL(PMSMETA.format(ratingKey), timeout=float(TIMEOUT))
             if xml is not None:
               Log.Info(XML.StringFromElement(xml  ))
-              roles, genres, collections = [], [], []
+              roles, genres = [], []
               for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',      metadata_field=metadata.genres,      multi=True, tag_multi='genre');  genres.append(tag.get('tag'))
               for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='collection', metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag'))
               for tag in xml.iterdescendants('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')} if 'thumb' in tag else None }}, multi='actor', tag_multi='name');  roles.append(tag.get('tag'))
@@ -459,7 +462,6 @@ def Update(metadata, media, lang, force, agent_type):
               Log.Info(XML.StringFromElement(xml))
 
               #Multi tags
-              roles, genres, collections = [], [], []
               for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='genre',      metadata_field=metadata.genres,      multi=True, tag_multi='genre');       genres.append(tag.get('tag'))
               for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='collection', metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag')) 
               for directory in xml.xpath('//MediaContainer/Directory'):
