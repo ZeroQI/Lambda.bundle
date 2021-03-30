@@ -66,8 +66,8 @@ def xml_from_url_paging_load(URL, key, count, window):
   ''' Load the URL xml page while handling total number of items and paging
   '''
   xml   = XML.ElementFromURL(URL.format(key, count, window), timeout=float(TIMEOUT))
-  total = int(xml.get('totalSize') or 0)
-  Log.Info("# [{:>4}-{:>4} of {:>4}] {}".format(count+1, count+int(xml.get('size') or 0), total, URL.format(key, count, window)))
+  total = int(xml.get('totalSize', 0))
+  Log.Info("# [{:>4}-{:>4} of {:>4}] {}".format(count+1, count+int(xml.get('size', 0)), total, URL.format(key, count, window)))
   return xml, count+window, total
 
 def nfo_load(NFOs, path, field, filenoext=''):
@@ -402,7 +402,7 @@ def Update(metadata, media, lang, force, agent_type):
               roles, genres = [], []
               for tag in xml.iterdescendants('Genre'     ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='genre',      metadata_field=metadata.genres,      multi=True, tag_multi='genre');  genres.append(tag.get('tag'))
               for tag in xml.iterdescendants('Collection'):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field='collection', metadata_field=metadata.collections, multi=True                   );  collections.append(tag.get('tag'))
-              for tag in xml.iterdescendants('Role'      ):  SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')} if 'thumb' in tag else None }}, multi='actor', tag_multi='name');  roles.append(tag.get('tag'))
+              for tag in xml.iterdescendants('Role'      ):  for tag in xml.iterdescendants('Role' ): SaveFile(tag.get('tag'), path, 'movies_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb', '')}}}, multi='actor', tag_multi='role'); roles.append(tag.get('tag'));  roles.append(tag.get('tag'))
               Log.Info("Genres:      {}".format(genres     ))
               Log.Info("Collections: {}".format(collections))
               Log.Info("Roles:       {}".format(roles      ))
@@ -434,7 +434,7 @@ def Update(metadata, media, lang, force, agent_type):
             nfo_xml   = nfo_load(NFOs, path,  'series_nfo')
             ratingKey  = show.get('ratingKey')                                  #Used in season and ep sections below
             roles      = [tag.get('tag') for tag in show.iterchildren('Role')]  #Used in Advance information: viewedLeafCount, Location, Roles
-            duration   = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration') is not None and show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
+            duration   = str(int(show.get('duration'))/ (1000 * 60)) if show.get('duration') and show.get('duration').isdigit() else "0" # in minutes in nfo in ms in Plex
             rated      = ('Rated '+show.get('contentRating')) if show.get('contentRating') else ''
             date_added = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(float(show.get('addedAt')))) if show.get('addedAt') else None
             SaveFile(id                               , path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'uniqueid': {'type': source or 'unknown', 'default': 'true', 'text': id}}, metadata_field=None)
@@ -468,9 +468,7 @@ def Update(metadata, media, lang, force, agent_type):
                 SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='path'     )
                 SaveFile(path,                             path, 'series_nfo', nfo_xml=nfo_xml, xml_field='basepath' )
                 SaveFile(directory.get('viewedLeafCount'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field='playcount')
-                for tag in directory.iterchildren('Role'):
-                  SaveFile(tag.get('role'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role')}, 'Name': {'text': tag.get('tag')}, 'thumb': {'text': tag.get('thumb')} if 'thumb' in tag else None}}, multi='actor', tag_multi='role')
-                  roles.append(tag.get('tag'))
+                for tag in directory.iterchildren('Role'):  SaveFile(tag.get('tag'), path, 'series_nfo', nfo_xml=nfo_xml, xml_field={'actor': {'role': {'text': tag.get('role', '')}, 'name': {'text': tag.get('tag', '')}, 'thumb': {'text': tag.get('thumb', '')}}}, multi='actor', tag_multi='role'); roles.append(tag.get('tag'))
               Log.Info("Roles:       {}".format(roles      ))
               Log.Info("Genres:      {}".format(genres     ))
               Log.Info("Collections: {}".format(collections))
@@ -488,7 +486,7 @@ def Update(metadata, media, lang, force, agent_type):
         for show in PLEX_XML_SEASONS.iterchildren('Directory') or []:
           if ratingKey == show.get('parentRatingKey'):
             if show.get('title'):  Log.Info('[ ] title:               {}'.format(show.get('title')))
-            season = show.get('title')[6:].strip() if show.get('title') is not None and show.get('title').startswith('Season') else '0'
+            season = show.get('title')[6:].strip() if show.get('title') and show.get('title').startswith('Season') else '0'
             for episode in media.seasons[season].episodes:
               season_folder = os.path.split(media.seasons[season].episodes[episode].items[0].parts[0].file)[0]
               
