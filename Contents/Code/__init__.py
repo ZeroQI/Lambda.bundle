@@ -714,7 +714,7 @@ class LambdaMovie(Agent.Movies):
 class LambdaAlbum(Agent.Album):
   name, primary_provider, fallback_agent, languages = 'Lambda', False, False, [Locale.Language.English, 'fr', 'zh', 'sv', 'no', 'da', 'fi', 'nl', 'de', 'it', 'es', 'pl', 'hu', 'el', 'tr', 'ru', 'he', 'ja', 'pt', 'cs', 'ko', 'sl', 'hr']
   persist_stored_files = False
-  contributes_to       = ['com.plexapp.agents.discogs', 'com.plexapp.agents.lastfm', 'com.plexapp.agents.plexmusic', 'com.plexapp.agents.none']
+  contributes_to       = ['com.plexapp.agents.discogs', 'com.plexapp.agents.lastfm', 'com.plexapp.agents.plexmusic', 'com.plexapp.agents.audnexus', 'com.plexapp.agents.none']
   def search(self, results,  media, lang, manual):  Search(results,  media, lang, manual, 'album')
   def update(self, metadata, media, lang, force ):  Update(metadata, media, lang, force,  'album')
 
